@@ -1,4 +1,4 @@
-const CACHE_NAME = "field-instrument-converter-v4-1";
+const CACHE_NAME = "field-instrument-converter-v4-2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,8 +27,36 @@ self.addEventListener("activate", event => {
   );
 });
 
+// App shell (page, manifest, service worker) is fetched network-first so any
+// push to GitHub reaches installed copies on the next open while online.
+// The cached copy is used only when offline. Icons/fonts stay cache-first.
+function isAppShell(request) {
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return false;
+  return request.mode === "navigate" || /\.(html|json|js)$/.test(url.pathname) || url.pathname.endsWith("/");
+}
+
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+
+  if (isAppShell(event.request)) {
+    event.respondWith(
+      fetch(event.request, {cache: "no-store"}).then(response => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      }).catch(() =>
+        caches.match(event.request).then(cached =>
+          cached || (event.request.mode === "navigate"
+            ? caches.match("./index.html")
+            : new Response("", {status: 503, statusText: "Offline"}))
+        )
+      )
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then(cached => {
