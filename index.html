@@ -116,6 +116,7 @@
   .field-input { padding:10px 12px; font-family:'JetBrains Mono', monospace; font-size:16px; font-variant-numeric: tabular-nums; }
   .field-select { padding:10px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; }
   .field-text { padding:10px 12px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; }
+  .field-readonly { background:rgba(0,0,0,0.18); color:var(--amber); box-shadow: inset 0 0 0 1.5px rgba(255,182,39,0.45); cursor:default; }
   .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
   .pill-row { display:flex; gap:6px; }
@@ -402,6 +403,7 @@ const STATE = {
   paPressureValue: "100", paPressureUnit: "kPa",
 
   errMode: "standard", errUnit: "kPa", errRef: "100", errMeas: "100.2", errTol: "0.25",
+  errTareOn: "off", errGross: "", errTareVal: "",
   errLRV: "0", errURV: "250", errOutput: "eng", errApplied: "125", errSpanMeas: "125.5", errSpanTol: "0.25",
 
   groupLast: { units:"pressure", instr:"loop", process:"cylinder", elec:"electrical", tools:"calculator" },
@@ -435,7 +437,19 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 /* ===================== Error calculator ===================== */
 function numOrNull(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
+function fmtPct(n) { const v = Math.round(n * 1e4) / 1e4; return (v > 0 ? "+" : "") + v; }
 function fmtSigned(n) { const s = formatResult(n); return (typeof n === "number" && n > 0) ? "+" + s : s; }
+/* Tare: Weight In − Weight Out = net, pushed into the reference value */
+function tareNet() {
+  const g = numOrNull(STATE.errGross), t = numOrNull(STATE.errTareVal);
+  if (g === null || t === null) return null;
+  return parseFloat((g - t).toPrecision(12));
+}
+function syncTare() {
+  if (STATE.category !== "error" || STATE.errMode !== "standard" || STATE.errTareOn !== "on") return;
+  const net = tareNet();
+  STATE.errRef = net === null ? "" : String(net);
+}
 function calcError() {
   if (STATE.errMode === "standard") {
     const ref = numOrNull(STATE.errRef), meas = numOrNull(STATE.errMeas);
@@ -882,7 +896,7 @@ function renderScreen() {
   }
   if(c==="error") {
     const r=calcError(), u=esc(STATE.errUnit||"units");
-    if(STATE.errMode==="standard") return `<div class="screen-sub">ERROR = MEASURED − REFERENCE</div><div class="screen-value">${esc(r?fmtSigned(r.err):"—")}</div><div class="screen-unit">${u} ERROR</div><div class="chip-row">${chip("% OF READING",r&&r.pctRdg!==null?fmtSigned(r.pctRdg)+" %":"—")}${chip(STATE.errUnit?`ALLOWED (${STATE.errUnit})`:"ALLOWED",r&&r.tolAbs!==null?"±"+formatResult(r.tolAbs):"—")}${verdictChip(r?r.pass:null)}</div>`;
+    if(STATE.errMode==="standard") return `<div class="screen-sub">${STATE.errTareOn==="on"?"TARED · REF = IN − OUT":"ERROR = MEASURED − REFERENCE"}</div><div class="screen-value">${esc(r?fmtSigned(r.err):"—")}</div><div class="screen-unit">${u} ERROR</div><div class="chip-row">${chip("% OF READING",r&&r.pctRdg!==null?fmtPct(r.pctRdg)+"%":"—")}${chip(STATE.errUnit?`ALLOWED (${STATE.errUnit})`:"ALLOWED",r&&r.tolAbs!==null?"±"+formatResult(r.tolAbs):"—")}${verdictChip(r?r.pass:null)}</div>`;
     return `<div class="screen-sub">ERROR AS % OF SPAN · ${STATE.errOutput==="ma"?"4–20 mA OUTPUT":"ENG. UNITS"}</div><div class="screen-value">${esc(r?fmtSigned(r.pctSpan):"—")}</div><div class="screen-unit">% OF SPAN${r?` (SPAN ${esc(formatResult(Math.abs(r.span)))} ${u})`:""}</div><div class="chip-row">${chip(`ERROR (${STATE.errUnit||"units"})`,r?fmtSigned(r.errEng):"—")}${STATE.errOutput==="ma"?chip("EXPECTED mA",r?formatResult(r.expectedMA):"—"):""}${verdictChip(r?r.pass:null)}</div>`;
   }
   if(c==="settings") return `<div class="screen-sub">APP SETTINGS</div><div class="screen-value" style="font-size:24px;">${esc(THEMES[STATE.theme].label.toUpperCase())}</div><div class="screen-unit">THEME</div>`;
@@ -913,7 +927,13 @@ function renderControls() {
     let o=`<div><label class="field-label">CALCULATION</label>${pillToggle("errMode",[{key:"standard",label:"STANDARD ERROR"},{key:"span",label:"% OF SPAN"}],STATE.errMode)}</div>`;
     const u=STATE.errUnit||"units";
     if(STATE.errMode==="standard"){
-      o+=twoCol(fieldNumber("REFERENCE","errRef",STATE.errRef),fieldNumber("MEASURED","errMeas",STATE.errMeas));
+      o+=`<div><label class="field-label">TARE</label>${pillToggle("errTareOn",[{key:"off",label:"OFF"},{key:"on",label:"ON · IN − OUT"}],STATE.errTareOn)}</div>`;
+      if(STATE.errTareOn==="on"){
+        o+=twoCol(fieldNumber(`WEIGHT IN (${u})`,"errGross",STATE.errGross),fieldNumber(`WEIGHT OUT (${u})`,"errTareVal",STATE.errTareVal));
+        o+=twoCol(`<div><label class="field-label">REFERENCE (NET)</label><input class="field-input field-readonly" type="text" readonly tabindex="-1" value="${esc(STATE.errRef===""?"—":STATE.errRef)}" aria-label="Reference, net of tare" /></div>`,fieldNumber("MEASURED","errMeas",STATE.errMeas));
+      } else {
+        o+=twoCol(fieldNumber("REFERENCE","errRef",STATE.errRef),fieldNumber("MEASURED","errMeas",STATE.errMeas));
+      }
       o+=twoCol(fieldText("UNIT LABEL","errUnit",STATE.errUnit,"e.g. kPa, °C"),fieldNumber("TOLERANCE ± % OF REF.","errTol",STATE.errTol));
       o+=`<div class="formula-note">Error = Measured − Reference (true/applied). % of reading = Error ÷ |Reference| × 100. Tolerance is ± % of the reference value (allowed error = |Reference| × Tol ÷ 100). Leave blank to skip pass/fail.</div>`;
     } else {
@@ -948,6 +968,7 @@ function renderCategoryGrid() {
 
 /* ===================== Main render + events ===================== */
 function render() {
+  syncTare();
   document.getElementById("screen").innerHTML = renderScreen();
   document.getElementById("categoryGrid").innerHTML = renderCategoryGrid();
   document.getElementById("controls").innerHTML = renderControls();
