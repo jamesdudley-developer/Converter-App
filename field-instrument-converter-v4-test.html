@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Field Instrument Converter v4 — Local Test</title>
+<meta name="theme-color" content="#1D5FA0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Field Converter" />
+<style>
+  :root {
+    --white:#FFFFFF; --amber:#FFB627; --cyan:#2FE6C4;
+    --outerBg:#1D5FA0; --panelFrom:#2E7ABF; --panelTo:#1E5A8A;
+    --screenBg:#0B2E4D; --fieldBg:#2A6FA5; --fieldBorder:rgba(255,255,255,0.4);
+    --tabInactiveBg:#1E5580; --tabActiveFrom:#4A96D1; --tabActiveTo:#2E7AB0;
+    --rivet:#0B2E4D;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:var(--outerBg); min-height:100vh; overscroll-behavior-y: none; overscroll-behavior-x: none; }
+  body {
+    display:flex; align-items:flex-start; justify-content:center;
+    padding: max(24px, env(safe-area-inset-top)) 12px 24px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  select, input { color-scheme: dark; }
+  select option { color:#FFFFFF; background:#1E5A8A; }
+  input::placeholder { color: rgba(255,255,255,0.65); }
+  input, select, button { font-family: inherit; }
+
+  .panel {
+    width:100%; max-width:384px; border-radius:28px; position:relative;
+    background: linear-gradient(160deg, var(--panelFrom) 0%, var(--panelTo) 100%);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12);
+    padding:18px;
+  }
+  .rivet {
+    width:8px; height:8px; border-radius:999px; background:var(--rivet);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.15);
+    position:absolute;
+  }
+  .header { display:flex; align-items:center; justify-content:space-between; padding:4px 8px 12px; }
+  .header-eyebrow { font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.2em; color:var(--white); }
+  .header-title { font-family:'IBM Plex Sans', sans-serif; font-size:15px; font-weight:600; color:var(--white); }
+  .header-title span { opacity:0.6; font-weight:400; }
+  .header-ready { font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--white); letter-spacing:0.15em; }
+
+  .screen {
+    border-radius:16px; padding:16px; margin-bottom:16px; background:var(--screenBg);
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.1);
+    min-height: 90px;
+  }
+  .screen-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .screen-label { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--white); letter-spacing:0.1em; }
+  .screen-sub { font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--white); letter-spacing:0.1em; opacity:0.85; margin-bottom:4px; }
+  .screen-value { text-align:right; font-family:'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; color:var(--amber); font-size:32px; line-height:1.1; word-break:break-all; }
+  .screen-unit { text-align:right; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--white); letter-spacing:0.05em; }
+  .swap-btn { padding:6px; border-radius:6px; background:transparent; border:none; cursor:pointer; display:flex; }
+  .swap-btn svg { display:block; }
+  .bar-track { margin-top:12px; height:6px; border-radius:999px; background:rgba(255,255,255,0.15); overflow:hidden; }
+  .bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, var(--white), var(--amber)); }
+  .bar-ends { display:flex; justify-content:space-between; margin-top:4px; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--white); }
+  .chip-row { display:flex; gap:8px; margin-top:10px; }
+  .chip { flex:1; border-radius:8px; padding:6px 8px; background:rgba(255,255,255,0.08); text-align:center; }
+  .chip-label { font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--white); letter-spacing:0.1em; opacity:0.85; }
+  .chip-value { font-family:'JetBrains Mono', monospace; font-size:14px; color:var(--amber); font-variant-numeric: tabular-nums; }
+
+  .category-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:16px; }
+  .category-btn {
+    border-radius:12px; padding:8px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;
+    border:none; cursor:pointer; background:var(--tabInactiveBg);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+  }
+  .category-btn.active {
+    background: linear-gradient(160deg, var(--tabActiveFrom), var(--tabActiveTo));
+    box-shadow: inset 0 0 0 1.5px rgba(255,182,39,0.7), 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .category-badge {
+    width:26px; height:20px; display:flex; align-items:center; justify-content:center;
+  }
+  .category-label { font-family:'IBM Plex Mono', monospace; font-size:9px; line-height:1.2; text-align:center; color:var(--white); font-weight:500; }
+  .category-btn.active .category-label { font-weight:700; }
+
+  .controls { display:flex; flex-direction:column; gap:14px; }
+  .field-label {
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:600; color:var(--white);
+    letter-spacing:0.04em; display:block; margin-bottom:6px; padding:0 4px;
+    height:13px; line-height:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .field-input, .field-select {
+    width:100%; border-radius:8px; color:var(--white); background:var(--fieldBg);
+    box-shadow: inset 0 0 0 1.5px var(--fieldBorder), inset 0 1px 3px rgba(0,0,0,0.35);
+    outline:none; border:none;
+  }
+  .field-input { padding:10px 12px; font-family:'JetBrains Mono', monospace; font-size:16px; font-variant-numeric: tabular-nums; }
+  .field-select { padding:10px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; }
+  .field-text { padding:10px 12px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+  .pill-row { display:flex; gap:6px; }
+  .pill-btn {
+    flex:1; min-height:34px; padding:6px 4px; border-radius:8px; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:9.5px; font-weight:500; color:var(--white);
+    letter-spacing:0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:var(--tabInactiveBg); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+  }
+  .pill-btn.active {
+    font-weight:700;
+    background: linear-gradient(160deg, var(--tabActiveFrom), var(--tabActiveTo));
+    box-shadow: inset 0 0 0 1.5px rgba(255,182,39,0.7), 0 2px 6px rgba(0,0,0,0.3);
+  }
+
+  .footer { margin-top:20px; display:flex; justify-content:flex-end; border-top:1px solid rgba(255,255,255,0.15); padding-top:12px; }
+  .footer span { font-family:'IBM Plex Mono', monospace; font-size:8px; color:var(--white); letter-spacing:0.15em; }
+
+
+  /* Calculator */
+  .calculator { display:flex; flex-direction:column; gap:10px; }
+  .calc-expression {
+    width:100%; min-height:46px; border-radius:10px; border:none; outline:none;
+    padding:10px 12px; background:var(--screenBg); color:var(--amber);
+    box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.18), inset 0 2px 5px rgba(0,0,0,.55);
+    font-family:'JetBrains Mono','IBM Plex Mono',monospace; font-size:22px; text-align:right;
+  }
+  .calc-keypad { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+  .calc-btn {
+    min-height:44px; border:0; border-radius:9px; cursor:pointer; color:var(--white);
+    background:var(--tabInactiveBg); box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);
+    font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600;
+  }
+  .calc-btn:active { transform:translateY(1px); }
+  .calc-btn.operator { background:linear-gradient(160deg,var(--tabActiveFrom),var(--tabActiveTo)); }
+  .calc-btn.function { color:var(--amber); }
+  .calc-btn.equals { background:var(--amber); color:var(--screenBg); }
+  .calc-result-note { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--white); opacity:.7; text-align:right; }
+  .base-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .base-output { border-radius:9px; padding:10px; background:rgba(255,255,255,.07); box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }
+  .base-output-label { font:600 9px 'IBM Plex Mono',monospace; color:var(--white); opacity:.75; margin-bottom:5px; }
+  .base-output-value { font:600 15px 'JetBrains Mono',monospace; color:var(--amber); overflow-wrap:anywhere; }
+  .calc-tabs { margin-bottom:2px; }
+  .electrical-card { display:flex; flex-direction:column; gap:12px; }
+  .formula-note { font:9px 'IBM Plex Mono',monospace; color:var(--white); opacity:.7; line-height:1.45; }
+
+  .settings-card { display:flex; flex-direction:column; gap:12px; }
+  .theme-swatches { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+  .theme-btn { min-height:38px; border:0; border-radius:9px; cursor:pointer; color:#fff; font:600 9px 'IBM Plex Mono',monospace; box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
+  .theme-btn.active { box-shadow:inset 0 0 0 2px var(--amber), 0 2px 6px rgba(0,0,0,.3); }
+  .theme-blue{background:#1D5FA0}.theme-green{background:#176B55}.theme-orange{background:#9A4B13}.theme-slate{background:#394B5A}
+
+  .install-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:flex-end;
+    justify-content:center; z-index:1000; padding:16px;
+  }
+  .install-card {
+    width:100%; max-width:360px; border-radius:20px; padding:20px;
+    background: linear-gradient(160deg, var(--panelFrom) 0%, var(--panelTo) 100%);
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+  .install-title { font-family:'IBM Plex Sans', sans-serif; font-size:16px; font-weight:600; color:var(--white); margin-bottom:6px; }
+  .install-body { font-family:'IBM Plex Sans', sans-serif; font-size:13px; color:var(--white); opacity:0.9; line-height:1.5; margin-bottom:16px; }
+  .install-body .kbd {
+    display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
+    border-radius:5px; background:rgba(255,255,255,0.15); vertical-align:middle; margin:0 2px;
+  }
+  .install-actions { display:flex; gap:8px; }
+  .install-btn {
+    flex:1; padding:11px; border-radius:10px; border:none; cursor:pointer;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:700; letter-spacing:0.04em;
+  }
+  .install-btn.primary { color:#0B2E4D; background:var(--amber); }
+  .install-btn.secondary { color:var(--white); background:rgba(255,255,255,0.12); }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <div class="rivet" style="top:12px;left:12px;"></div>
+    <div class="rivet" style="top:12px;right:12px;"></div>
+    <div class="rivet" style="bottom:12px;left:12px;"></div>
+    <div class="rivet" style="bottom:12px;right:12px;"></div>
+
+    <div class="header">
+      <div>
+        <div class="header-eyebrow">FIELD REFERENCE</div>
+        <div class="header-title">Field Instrument Converter <span>v4.1</span></div>
+      </div>
+      <div class="header-ready">&#9679; READY</div>
+    </div>
+
+    <div id="screen" class="screen"></div>
+    <div id="categoryGrid" class="category-grid"></div>
+    <div id="controls" class="controls"></div>
+
+    <div class="footer"><span>FIELD INSTRUMENT CONVERTER · v4.1</span></div>
+  </div>
+
+  <div id="installOverlay" class="install-overlay" style="display:none;">
+    <div class="install-card">
+      <div class="install-title" id="installTitle">Install this app</div>
+      <div class="install-body" id="installBody"></div>
+      <div class="install-actions" id="installActions"></div>
+    </div>
+  </div>
+
+<script>
+/* ===================== Conversion tables ===================== */
+const PRESSURE = { units: {
+  Pa:1, kPa:1000, MPa:1e6, bar:1e5, mbar:100, psi:6894.757293168,
+  "kgf/cm²":98066.5, atm:101325, "mmH₂O":9.80665, mmHg:133.322387415,
+  "inH₂O":249.0889, inHg:3386.389
+}};
+
+const LENGTH = { units: {
+  "µm":0.000001, mil:0.0000254, mm:0.001, cm:0.01, m:1, km:1000,
+  "in":0.0254, ft:0.3048, yd:0.9144, fathom:1.8288, rod:5.0292,
+  chain:20.1168, furlong:201.168, mile:1609.344, "nautical mile":1852,
+  link:0.201168, hand:0.1016
+}};
+
+const FLOW = { units: {
+  "mL/min":0.001, "L/min":1, "L/h":1/60, "L/s":60, "m³/min":1000,
+  "m³/h":1000/60, "m³/s":60000, "m³/day":1000/1440, "US GPM":3.785411784,
+  "US GPH":3.785411784/60, "UK GPM":4.54609, "ft³/min (CFM)":28.316846592,
+  "ft³/s (CFS)":28.316846592*60, "bbl/day (oil)":158.987294928/1440
+}};
+
+const WEIGHT = { units: {
+  g:0.001, kg:1, lb:0.45359237, oz:0.0283495231, "t (metric)":1000, "ton (US)":907.18474
+}};
+
+const VOLUME = { units: {
+  "µL":0.000000001, mL:0.000001, "cm³":0.000001, cL:0.00001, dL:0.0001,
+  L:0.001, "dm³":0.001, hL:0.1, kL:1, "m³":1, "mm³":0.000000001,
+  "in³":0.0000163871, "ft³":0.0283168466, "yd³":0.764554858,
+  "US fl oz":0.0000295735296, "UK fl oz":0.0000284130625, "US pt":0.000473176473,
+  "US qt":0.000946352946, "US gal":0.003785411784, "UK gal":0.00454609,
+  "barrel (oil, 42 US gal)":0.158987294928
+}};
+
+const AREA = { units: {
+  "mm²":0.000001, "cm²":0.0001, "m²":1, "km²":1000000, "in²":0.00064516,
+  "ft²":0.09290304, "yd²":0.83612736, acre:4046.8564224, hectare:10000
+}};
+
+const FORCE = { units: {
+  dyn:0.00001, gf:0.00980665, N:1, kgf:9.80665, ozf:0.278013851,
+  lbf:4.4482216153, kN:1000, kip:4448.2216153, "tonf (metric)":9806.65,
+  "tonf (US)":8896.443230521, MN:1000000
+}};
+
+const ACCEL = { units: {
+  "m/s²":1, "ft/s²":0.3048, "g (9.80665 m/s²)":9.80665
+}};
+
+const ICONS = {
+  gauge: `<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>`,
+  ruler: `<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/>`,
+  waves: `<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>`,
+  weight: `<circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-2 1.7l-1.4 9a2 2 0 0 0 2 2.3h13.8a2 2 0 0 0 2-2.3l-1.4-9a2 2 0 0 0-2-1.7Z"/>`,
+  thermometer: `<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>`,
+  zap: `<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>`,
+  activity: `<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>`,
+  database: `<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>`,
+  signal: `<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>`,
+  cpu: `<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M18 9h4M2 15h4M18 15h4"/>`,
+  move: `<path d="M12 2v20"/><path d="m15 19-3 3-3-3"/><path d="m19 9 3 3-3 3"/><path d="M2 12h20"/><path d="m5 9-3 3 3 3"/><path d="m9 5 3-3 3 3"/>`,
+};
+function iconSvg(name) {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+}
+
+const CATEGORIES = [
+  { key:"pressure", label:"Pressure", icon:"gauge" },
+  { key:"length", label:"Level / Length", icon:"ruler" },
+  { key:"flow", label:"Flow", icon:"waves" },
+  { key:"weight", label:"Weight", icon:"weight" },
+  { key:"temp", label:"Temperature", icon:"thermometer" },
+  { key:"loop", label:"4–20 mA Scaling", icon:"zap" },
+  { key:"dpflow", label:"DP Flow", icon:"activity" },
+  { key:"cylinder", label:"Cylinder Volume", icon:"database" },
+  { key:"radar", label:"Radar Level", icon:"signal" },
+  { key:"force", label:"Force / P-A", icon:"move" },
+  { key:"electrical", label:"Electrical", icon:"zap" },
+  { key:"vdrop", label:"Voltage Drop", icon:"activity" },
+  { key:"density", label:"Mass / Density", icon:"weight" },
+  { key:"calculator", label:"Calculator / Bases", icon:"database" },
+  { key:"settings", label:"Settings", icon:"gauge" },
+  { key:"plc", label:"PLC / Instrumentation", icon:"cpu" },
+];
+
+/* ===================== Helpers ===================== */
+function convertLinear(value, fromUnit, toUnit, table) {
+  if (value === "" || isNaN(value)) return "";
+  return (parseFloat(value) * table[fromUnit]) / table[toUnit];
+}
+function convertTemp(value, fromUnit, toUnit) {
+  if (value === "" || isNaN(value)) return "";
+  const v = parseFloat(value);
+  let c;
+  if (fromUnit === "°C") c = v;
+  else if (fromUnit === "°F") c = (v - 32) * 5 / 9;
+  else if (fromUnit === "K") c = v - 273.15;
+  if (toUnit === "°C") return c;
+  if (toUnit === "°F") return c * 9 / 5 + 32;
+  if (toUnit === "K") return c + 273.15;
+}
+function formatResult(n) {
+  if (n === "" || n === undefined || n === null || isNaN(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs !== 0 && (abs < 0.0001 || abs >= 1e9)) return n.toExponential(4);
+  return (Math.round(n * 1e6) / 1e6).toString();
+}
+function dimensionToRadiusMeters(value, unit, type) {
+  const v = parseFloat(value);
+  if (isNaN(v)) return NaN;
+  const vm = v * LENGTH.units[unit];
+  if (type === "radius") return vm;
+  if (type === "diameter") return vm / 2;
+  if (type === "circumference") return vm / (2 * Math.PI);
+  return NaN;
+}
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/* ===================== State ===================== */
+const STATE = {
+  category: "pressure",
+  standardTabs: {
+    pressure: { inputValue: "1", fromUnit: null, toUnit: null },
+    length: { inputValue: "1", fromUnit: null, toUnit: null },
+    flow: { inputValue: "1", fromUnit: null, toUnit: null },
+    weight: { inputValue: "1", fromUnit: null, toUnit: null },
+    temp: { inputValue: "1", fromUnit: null, toUnit: null },
+  },
+
+  loopMode: "mA-to-eng", loopLow: "0", loopHigh: "100", loopUnit: "", loopInput: "12",
+
+  dpSqrt: "sqrt", dpSolveFrom: "dp", dpRangeLow: "0", dpRangeHigh: "25", dpRangeUnit: "kPa",
+  flowRangeLow: "0", flowRangeHigh: "500", flowUnitLabel: "m³/h",
+  dpValue: "12.5", dpValueUnit: "kPa", flowValue: "350",
+
+  cylSolve: "volume", cylDimType: "diameter", cylDimValue: "1", cylDimUnit: "m",
+  cylHeightValue: "1", cylHeightUnit: "m", cylVolumeValue: "1000", cylVolumeUnit: "L",
+
+  radarRef: "2000", radarRefUnit: "mm", radarMeasured: "500", radarMeasuredUnit: "mm",
+  radarOffset: "0", radarOffsetUnit: "mm", radarOffsetSign: "add", radarOutputUnit: "mm",
+  radarVolumeOn: "off", radarDimType: "diameter", radarDimValue: "1", radarDimUnit: "m", radarVolumeUnit: "L",
+
+  theme: "blue",
+  calcMode: "calc", calcExpression: "", calcResult: "",
+  baseInput: "255", baseInputBase: "dec",
+  electricalMode: "ohm", electricalSolve: "voltage", electricalV: "24", electricalI: "2", electricalR: "12", electricalP: "48", electricalPF: "1", electricalPhases: "1",
+  vdropMode: "dc", vdropLength: "50", vdropLengthUnit: "m", vdropCurrent: "10", vdropResistance: "0.0181", vdropResistanceUnit: "Ω/km", vdropVoltage: "24",
+  densitySolve: "density", densityMass: "100", densityMassUnit: "kg", densityVolume: "100", densityVolumeUnit: "L", densityValue: "1000", densityValueUnit: "kg/m³",
+  plcMode: "bits",
+  plcWidth: "16", plcInputBase: "hex", plcInput: "00FF", plcBitIndex: "0", plcBitOp: "read",
+  ieeeMode: "hex-to-float", ieeeValue: "41480000", ieeeOrder: "ABCD",
+  modbusMode: "32", modbusReg1: "4148", modbusReg2: "0000", modbusOrder: "ABCD",
+  loopDiagCurrent: "12", loopDiagStandard: "ne43",
+    forceCalcMode: "ma", forceSolve: "force",
+  forceMassValue: "10", forceMassUnit: "kg",
+  forceAccelValue: "9.80665", forceAccelUnit: "m/s²",
+  forceForceValue: "100", forceForceUnit: "N",
+  paSolve: "pressure", paAreaValue: "1", paAreaUnit: "m²",
+  paPressureValue: "100", paPressureUnit: "kPa",
+};
+
+
+const THEMES = {
+  blue:   {label:"Blue", outer:"#1D5FA0", from:"#2E7ABF", to:"#1E5A8A", field:"#2A6FA5", inactive:"#1E5580", activeFrom:"#4A96D1", activeTo:"#2E7AB0"},
+  green:  {label:"Green", outer:"#176B55", from:"#25866C", to:"#124D3E", field:"#216E5A", inactive:"#185746", activeFrom:"#3B9A7C", activeTo:"#287761"},
+  orange: {label:"Orange", outer:"#9A4B13", from:"#C2671C", to:"#78370D", field:"#A95116", inactive:"#73360F", activeFrom:"#D57A2A", activeTo:"#A95318"},
+  slate:  {label:"Slate", outer:"#394B5A", from:"#506678", to:"#2C3944", field:"#465A6A", inactive:"#33434F", activeFrom:"#667F92", activeTo:"#4F6575"}
+};
+function applyTheme(key) {
+  const t = THEMES[key] || THEMES.blue;
+  const root=document.documentElement;
+  root.style.setProperty("--outerBg",t.outer); root.style.setProperty("--panelFrom",t.from);
+  root.style.setProperty("--panelTo",t.to); root.style.setProperty("--fieldBg",t.field);
+  root.style.setProperty("--tabInactiveBg",t.inactive); root.style.setProperty("--tabActiveFrom",t.activeFrom);
+  root.style.setProperty("--tabActiveTo",t.activeTo);
+  const meta=document.querySelector('meta[name="theme-color"]'); if(meta) meta.content=t.outer;
+  try { localStorage.setItem("fieldUnitTheme",key); } catch(e){}
+}
+function loadTheme() {
+  try { const k=localStorage.getItem("fieldUnitTheme"); if(k && THEMES[k]) STATE.theme=k; } catch(e){}
+  applyTheme(STATE.theme);
+}
+
+/* Safe calculator: recursive-descent parser, no eval(). Supports + − × ÷, parentheses, x², sqrt(). */
+function calculateExpression(expr) {
+  let i=0;
+  const src=String(expr).replace(/,/g,"").replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-").replace(/\s+/g,"");
+  function peek(){return src[i]||"";}
+  function eat(ch){if(src[i]===ch){i++;return true;}return false;}
+  function number(){
+    const start=i; let dot=false, exp=false;
+    if(peek()==="+"||peek()==="-") i++;
+    while(i<src.length){
+      const c=src[i];
+      if(c>="0"&&c<="9") {i++;continue;}
+      if(c==="."&&!dot&&!exp){dot=true;i++;continue;}
+      if((c==="e"||c==="E")&&!exp){exp=true;i++; if(peek()==="+"||peek()==="-")i++; continue;}
+      break;
+    }
+    if(start===i) throw Error("number");
+    const n=Number(src.slice(start,i)); if(!Number.isFinite(n)) throw Error("number");
+    return n;
+  }
+  function primary(){
+    if(eat("+")) return primary();
+    if(eat("-")) return -primary();
+    if(eat("(")){const v=addSub(); if(!eat(")")) throw Error(")");
+      return v;
+    }
+    if(src.slice(i,i+4).toLowerCase()==="sqrt"){i+=4; if(eat("(")){const v=addSub(); if(!eat(")"))throw Error(")"); if(v<0)throw Error("sqrt"); return Math.sqrt(v);}
+      return Math.sqrt(number());
+    }
+    return number();
+  }
+  function power(){let v=primary(); while(eat("^")){const r=primary(); v=Math.pow(v,r);} return v;}
+  function mulDiv(){let v=power(); while(peek()==="*"||peek()==="/"){const op=src[i++],r=power(); if(op==="/"&&r===0)throw Error("zero"); v=op==="*" ? v*r : v/r;} return v;}
+  function addSub(){let v=mulDiv(); while(peek()==="+"||peek()==="-"){const op=src[i++],r=mulDiv(); v=op==="+"?v+r:v-r;} return v;}
+  const result=addSub(); if(i!==src.length || !Number.isFinite(result)) throw Error("invalid");
+  return result;
+}
+function calcFormat(n) {
+  if(!Number.isFinite(n)) return "ERROR";
+  const a=Math.abs(n);
+  if(a!==0&&(a<1e-8||a>=1e10)) return n.toExponential(8);
+  return Number(n.toPrecision(12)).toString();
+}
+
+function parseBaseInteger(value, base) {
+  const raw=String(value).trim().replace(/^0[bBxX]/,'');
+  if (!raw) throw Error("empty");
+  if (base === 2 && !/^[01]+$/.test(raw)) throw Error("binary");
+  if (base === 10 && !/^\+?\d+$/.test(raw)) throw Error("decimal");
+  if (base === 16 && !/^[0-9a-fA-F]+$/.test(raw)) throw Error("hex");
+  const n=BigInt((base===10?raw:base===2?"0b":"0x")+raw);
+  if (n < 0n) throw Error("negative");
+  return n;
+}
+function calcBaseConverter() {
+  try {
+    const b=STATE.baseInputBase;
+    const n=parseBaseInteger(STATE.baseInput,b==="bin"?2:b==="hex"?16:10);
+    return {dec:n.toString(10),bin:n.toString(2),hex:n.toString(16).toUpperCase()};
+  } catch(e) { return null; }
+}
+function calcElectrical() {
+  const V=Number(STATE.electricalV), I=Number(STATE.electricalI), R=Number(STATE.electricalR), P=Number(STATE.electricalP), PF=Number(STATE.electricalPF), phases=Number(STATE.electricalPhases);
+  if (![V,I,R,P,PF,phases].every(Number.isFinite) || PF<=0 || PF>1 || phases<1) return null;
+  if (STATE.electricalMode==="ohm") {
+    if (STATE.electricalSolve==="voltage") { if(I<0||R<0) return null; return {value:I*R,unit:"V",note:"V = I × R"}; }
+    if (STATE.electricalSolve==="current") { if(R===0) return null; return {value:V/R,unit:"A",note:"I = V ÷ R"}; }
+    if (STATE.electricalSolve==="resistance") { if(I===0) return null; return {value:V/I,unit:"Ω",note:"R = V ÷ I"}; }
+    return {value:V*I,unit:"W",note:"P = V × I"};
+  }
+  const factor=phases===3?Math.sqrt(3):1;
+  if (STATE.electricalSolve==="power") return {value:factor*V*I*PF,unit:"W",note:phases===3?"P = √3 × V × I × PF":"P = V × I × PF"};
+  if (STATE.electricalSolve==="current") { const den=factor*V*PF; if(den===0)return null; return {value:P/den,unit:"A",note:phases===3?"I = P ÷ (√3 × V × PF)":"I = P ÷ (V × PF)"}; }
+  const den=factor*I*PF; if(den===0)return null;
+  return {value:P/den,unit:"V",note:phases===3?"V = P ÷ (√3 × I × PF)":"V = P ÷ (I × PF)"};
+}
+function calcVoltageDrop() {
+  const L=Number(STATE.vdropLength), I=Number(STATE.vdropCurrent), R=Number(STATE.vdropResistance), V=Number(STATE.vdropVoltage);
+  if (![L,I,R,V].every(Number.isFinite) || L<0 || I<0 || R<0 || V<=0) return null;
+  const lengthKm=STATE.vdropLengthUnit==="km"?L:L/1000;
+  const rPerKm=R;
+  const multiplier=STATE.vdropMode==="3ph"?Math.sqrt(3):2;
+  const drop=I*rPerKm*lengthKm*multiplier;
+  return {drop,pct:drop/V*100,remaining:V-drop};
+}
+function calcDensity() {
+  const m=Number(STATE.densityMass)*WEIGHT.units[STATE.densityMassUnit];
+  const v=Number(STATE.densityVolume)*VOLUME.units[STATE.densityVolumeUnit];
+  const d=Number(STATE.densityValue);
+  if (![m,v,d].every(Number.isFinite)) return null;
+  if(STATE.densitySolve==="density") { if(v<=0)return null; return m/v; }
+  if(STATE.densitySolve==="mass") return d*v;
+  if(d<=0)return null; return m/d;
+}
+
+function parsePLCInteger(value, base) {
+  let raw=String(value).trim();
+  if(!raw) throw Error("empty");
+  let sign=1n;
+  if(raw[0]==="-"){ sign=-1n; raw=raw.slice(1); }
+  raw=raw.replace(/^0[bBxX]/,"");
+  if(!raw) throw Error("empty");
+  if(base===2 && !/^[01]+$/.test(raw)) throw Error("binary");
+  if(base===10 && !/^\d+$/.test(raw)) throw Error("decimal");
+  if(base===16 && !/^[0-9a-fA-F]+$/.test(raw)) throw Error("hex");
+  return sign*BigInt((base===2?"0b":base===16?"0x":"")+raw);
+}
+function plcMask(width){ return (1n<<BigInt(width))-1n; }
+function plcUnsigned(value,width){ return value & plcMask(width); }
+function plcSigned(value,width){
+  const u=plcUnsigned(value,width), sign=1n<<BigInt(width-1);
+  return (u & sign) ? u-(1n<<BigInt(width)) : u;
+}
+function plcBinary(value,width){ return plcUnsigned(value,width).toString(2).padStart(width,"0"); }
+function plcHex(value,width){ return plcUnsigned(value,width).toString(16).toUpperCase().padStart(width/4,"0"); }
+function hexToBytes32(hex){
+  const h=String(hex).trim().replace(/^0x/i,"");
+  if(!/^[0-9a-fA-F]{8}$/.test(h)) throw Error("hex");
+  return h.match(/../g).map(x=>parseInt(x,16));
+}
+function reorderHex32(hex,order){
+  const b=hexToBytes32(hex), maps={ABCD:[0,1,2,3],BADC:[1,0,3,2],CDAB:[2,3,0,1],DCBA:[3,2,1,0]};
+  return maps[order].map(i=>b[i].toString(16).padStart(2,"0")).join("").toUpperCase();
+}
+function calcPLCBitTool(){
+  try{
+    const width=Number(STATE.plcWidth), base=STATE.plcInputBase==="bin"?2:STATE.plcInputBase==="hex"?16:10;
+    if(![8,16,32].includes(width)) throw Error("width");
+    const raw=parsePLCInteger(STATE.plcInput,base), u=plcUnsigned(raw,width), bit=Number(STATE.plcBitIndex);
+    if(!Number.isInteger(bit)||bit<0||bit>=width) throw Error("bit");
+    const mask=1n<<BigInt(bit);
+    let modified=u;
+    if(STATE.plcBitOp==="set") modified=u|mask;
+    else if(STATE.plcBitOp==="clear") modified=u&~mask;
+    else if(STATE.plcBitOp==="toggle") modified=u^mask;
+    return {width,input:u,modified,bit:(u&mask)?1:0,signed:plcSigned(modified,width),unsigned:modified,hex:plcHex(modified,width),binary:plcBinary(modified,width)};
+  }catch(e){return null;}
+}
+function hexToFloat32(hex,order){
+  const canonical=reorderHex32(String(hex).trim().replace(/^0x/i,""),order), b=hexToBytes32(canonical), buf=new ArrayBuffer(4), view=new DataView(buf);
+  b.forEach((x,i)=>view.setUint8(i,x)); return view.getFloat32(0,false);
+}
+function float32ToHex(value,order){
+  const buf=new ArrayBuffer(4), view=new DataView(buf); view.setFloat32(0,Number(value),false);
+  const canonical=Array.from({length:4},(_,i)=>view.getUint8(i).toString(16).padStart(2,"0")).join("").toUpperCase();
+  return reorderHex32(canonical,order);
+}
+function calcIEEE(){
+  try{
+    if(STATE.ieeeMode==="hex-to-float") return {float:hexToFloat32(STATE.ieeeValue,STATE.ieeeOrder),hex:String(STATE.ieeeValue).trim().replace(/^0x/i,"").toUpperCase().padStart(8,"0")};
+    const n=Number(STATE.ieeeValue); if(!Number.isFinite(n)) throw Error("float"); return {float:n,hex:float32ToHex(n,STATE.ieeeOrder)};
+  }catch(e){return null;}
+}
+function calcModbus(){
+  try{
+    const r1=parseInt(String(STATE.modbusReg1).trim().replace(/^0x/i,""),16), r2=parseInt(String(STATE.modbusReg2).trim().replace(/^0x/i,""),16);
+    if(!Number.isInteger(r1)||!Number.isInteger(r2)||r1<0||r1>0xFFFF||r2<0||r2>0xFFFF) throw Error("register");
+    if(STATE.modbusMode==="16") { const h=r1.toString(16).padStart(4,"0").toUpperCase(); const hex=STATE.modbusOrder==="BA"?h.slice(2)+h.slice(0,2):h; const u=parseInt(hex,16); return {hex,u16:u,signed:u>=0x8000?u-0x10000:u}; }
+    const a=[r1>>8,r1&255,r2>>8,r2&255], maps={ABCD:[0,1,2,3],BADC:[1,0,3,2],CDAB:[2,3,0,1],DCBA:[3,2,1,0]}, bytes=maps[STATE.modbusOrder].map(i=>a[i]);
+    const hex=bytes.map(x=>x.toString(16).padStart(2,"0")).join("").toUpperCase(), u32=bytes.reduce((n,x)=>n*256+x,0), signed=u32>=0x80000000?u32-0x100000000:u32;
+    const buf=new ArrayBuffer(4), view=new DataView(buf); bytes.forEach((x,i)=>view.setUint8(i,x));
+    return {hex,u32,signed,float:view.getFloat32(0,false),highWord:(u32>>>16)&0xFFFF,lowWord:u32&0xFFFF};
+  }catch(e){return null;}
+}
+function calcLoopDiagnostic(){
+  const m=Number(STATE.loopDiagCurrent); if(!Number.isFinite(m)) return null;
+  if(STATE.loopDiagStandard!=="ne43"){
+    if(m<3.6) return {state:"LOW / FAULT",detail:"Below 3.6 mA"};
+    if(m>20.5) return {state:"HIGH / FAULT",detail:"Above 20.5 mA"};
+    return {state:"NORMAL",detail:"Within 3.6–20.5 mA"};
+  }
+  if(m<3.6) return {state:"FAIL LOW",detail:"≤ 3.6 mA alarm region"};
+  if(m<3.8) return {state:"UNDERRANGE",detail:"3.6–3.8 mA warning region"};
+  if(m<=20.5) return {state:"NORMAL",detail:"3.8–20.5 mA process range"};
+  if(m<=21.0) return {state:"OVERRANGE",detail:"20.5–21.0 mA warning region"};
+  return {state:"FAIL HIGH",detail:"> 21.0 mA alarm region"};
+}
+
+function catInfo() {
+  if (STATE.category === "pressure") return PRESSURE;
+  if (STATE.category === "length") return LENGTH;
+  if (STATE.category === "flow") return FLOW;
+  if (STATE.category === "weight") return WEIGHT;
+  return null;
+}
+function unitKeysForStandard() {
+  if (STATE.category === "temp") return ["°C", "°F", "K"];
+  const d = catInfo();
+  return d ? Object.keys(d.units) : [];
+}
+function effectiveFrom() {
+  const keys = unitKeysForStandard();
+  const t = STATE.standardTabs[STATE.category];
+  return t.fromUnit && keys.includes(t.fromUnit) ? t.fromUnit : keys[0];
+}
+function effectiveTo() {
+  const keys = unitKeysForStandard();
+  const t = STATE.standardTabs[STATE.category];
+  return t.toUnit && keys.includes(t.toUnit) ? t.toUnit : (keys[1] || keys[0]);
+}
+
+/* ===================== Calc functions ===================== */
+function calcStandard() {
+  const from = effectiveFrom(), to = effectiveTo();
+  const inputValue = STATE.standardTabs[STATE.category].inputValue;
+  if (STATE.category === "temp") return convertTemp(inputValue, from, to);
+  const d = catInfo();
+  if (d) return convertLinear(inputValue, from, to, d.units);
+  return "";
+}
+
+function calcLoop() {
+  const low = parseFloat(STATE.loopLow), high = parseFloat(STATE.loopHigh), val = parseFloat(STATE.loopInput);
+  if (isNaN(low) || isNaN(high) || isNaN(val) || high === low) return "";
+  if (STATE.loopMode === "mA-to-eng") {
+    if (val < 3.5 || val > 20.5) return "OUT OF RANGE";
+    return low + ((val - 4) / 16) * (high - low);
+  }
+  return 4 + ((val - low) / (high - low)) * 16;
+}
+function calcLoopPercent() {
+  const low = parseFloat(STATE.loopLow), high = parseFloat(STATE.loopHigh), val = parseFloat(STATE.loopInput);
+  if (isNaN(low) || isNaN(high) || isNaN(val)) return 0;
+  let pct = STATE.loopMode === "mA-to-eng" ? ((val - 4) / 16) * 100 : ((val - low) / (high - low)) * 100;
+  return Math.min(100, Math.max(0, pct));
+}
+
+function calcDP() {
+  const rangeLowPa = parseFloat(STATE.dpRangeLow) * PRESSURE.units[STATE.dpRangeUnit];
+  const rangeHighPa = parseFloat(STATE.dpRangeHigh) * PRESSURE.units[STATE.dpRangeUnit];
+  const fLow = parseFloat(STATE.flowRangeLow), fHigh = parseFloat(STATE.flowRangeHigh);
+  if ([rangeLowPa, rangeHighPa, fLow, fHigh].some(isNaN) || rangeHighPa === rangeLowPa || fHigh === fLow) return null;
+
+  let dpPct, flowPct, dpValuePa;
+  if (STATE.dpSolveFrom === "dp") {
+    const valPa = parseFloat(STATE.dpValue) * PRESSURE.units[STATE.dpValueUnit];
+    if (isNaN(valPa)) return null;
+    dpPct = (valPa - rangeLowPa) / (rangeHighPa - rangeLowPa);
+    flowPct = STATE.dpSqrt === "sqrt" ? Math.sqrt(Math.max(dpPct, 0)) : dpPct;
+    dpValuePa = valPa;
+  } else {
+    const fVal = parseFloat(STATE.flowValue);
+    if (isNaN(fVal)) return null;
+    flowPct = (fVal - fLow) / (fHigh - fLow);
+    dpPct = STATE.dpSqrt === "sqrt" ? Math.pow(Math.max(flowPct, 0), 2) : flowPct;
+    dpValuePa = rangeLowPa + dpPct * (rangeHighPa - rangeLowPa);
+  }
+  const flowResult = fLow + flowPct * (fHigh - fLow);
+  const dpDisplay = dpValuePa / PRESSURE.units[STATE.dpValueUnit];
+  const dpMA = 4 + dpPct * 16;
+  const flowMA = 4 + flowPct * 16;
+  const invalid = STATE.dpSqrt === "sqrt" && dpPct < 0;
+  return { flowResult, dpDisplay, dpMA, flowMA, dpPct, flowPct, invalid };
+}
+
+function calcCylinder() {
+  if (STATE.cylSolve === "volume") {
+    const r = dimensionToRadiusMeters(STATE.cylDimValue, STATE.cylDimUnit, STATE.cylDimType);
+    const h = parseFloat(STATE.cylHeightValue) * LENGTH.units[STATE.cylHeightUnit];
+    if (isNaN(r) || isNaN(h)) return null;
+    return { volumeResult: (Math.PI * r * r * h) / VOLUME.units[STATE.cylVolumeUnit] };
+  }
+  if (STATE.cylSolve === "height") {
+    const r = dimensionToRadiusMeters(STATE.cylDimValue, STATE.cylDimUnit, STATE.cylDimType);
+    const v = parseFloat(STATE.cylVolumeValue) * VOLUME.units[STATE.cylVolumeUnit];
+    if (isNaN(r) || isNaN(v) || r === 0) return null;
+    return { heightResult: (v / (Math.PI * r * r)) / LENGTH.units[STATE.cylHeightUnit] };
+  }
+  const h = parseFloat(STATE.cylHeightValue) * LENGTH.units[STATE.cylHeightUnit];
+  const v = parseFloat(STATE.cylVolumeValue) * VOLUME.units[STATE.cylVolumeUnit];
+  if (isNaN(h) || isNaN(v) || h === 0) return null;
+  const r = Math.sqrt(v / (Math.PI * h));
+  return {
+    diameterResult: (2 * r) / LENGTH.units[STATE.cylDimUnit],
+    radiusResult: r / LENGTH.units[STATE.cylDimUnit],
+    circumferenceResult: (2 * Math.PI * r) / LENGTH.units[STATE.cylDimUnit],
+  };
+}
+
+function radarLevelMeters() {
+  const ref = parseFloat(STATE.radarRef) * LENGTH.units[STATE.radarRefUnit];
+  const meas = parseFloat(STATE.radarMeasured) * LENGTH.units[STATE.radarMeasuredUnit];
+  const off = parseFloat(STATE.radarOffset) * LENGTH.units[STATE.radarOffsetUnit];
+  if ([ref, meas, off].some(isNaN)) return null;
+  return ref - meas + (STATE.radarOffsetSign === "add" ? off : -off);
+}
+function calcRadar() {
+  const level = radarLevelMeters();
+  if (level === null) return null;
+  return level / LENGTH.units[STATE.radarOutputUnit];
+}
+function calcRadarVolume() {
+  if (STATE.radarVolumeOn !== "on") return null;
+  const level = radarLevelMeters();
+  if (level === null) return null;
+  const r = dimensionToRadiusMeters(STATE.radarDimValue, STATE.radarDimUnit, STATE.radarDimType);
+  if (isNaN(r)) return null;
+  const v = Math.PI * r * r * Math.max(level, 0);
+  return v / VOLUME.units[STATE.radarVolumeUnit];
+}
+
+function calcForceMA() {
+  const mass_kg = parseFloat(STATE.forceMassValue) * WEIGHT.units[STATE.forceMassUnit];
+  const accel_ms2 = parseFloat(STATE.forceAccelValue) * ACCEL.units[STATE.forceAccelUnit];
+  const force_N = parseFloat(STATE.forceForceValue) * FORCE.units[STATE.forceForceUnit];
+  if (STATE.forceSolve === "force") {
+    if (isNaN(mass_kg) || isNaN(accel_ms2)) return null;
+    return (mass_kg * accel_ms2) / FORCE.units[STATE.forceForceUnit];
+  }
+  if (STATE.forceSolve === "mass") {
+    if (isNaN(force_N) || isNaN(accel_ms2) || accel_ms2 === 0) return null;
+    return (force_N / accel_ms2) / WEIGHT.units[STATE.forceMassUnit];
+  }
+  if (isNaN(force_N) || isNaN(mass_kg) || mass_kg === 0) return null;
+  return (force_N / mass_kg) / ACCEL.units[STATE.forceAccelUnit];
+}
+function calcPA() {
+  const force_N = parseFloat(STATE.forceForceValue) * FORCE.units[STATE.forceForceUnit];
+  const area_m2 = parseFloat(STATE.paAreaValue) * AREA.units[STATE.paAreaUnit];
+  const pressure_Pa = parseFloat(STATE.paPressureValue) * PRESSURE.units[STATE.paPressureUnit];
+  if (STATE.paSolve === "pressure") {
+    if (isNaN(force_N) || isNaN(area_m2) || area_m2 === 0) return null;
+    return (force_N / area_m2) / PRESSURE.units[STATE.paPressureUnit];
+  }
+  if (STATE.paSolve === "force") {
+    if (isNaN(pressure_Pa) || isNaN(area_m2)) return null;
+    return (pressure_Pa * area_m2) / FORCE.units[STATE.forceForceUnit];
+  }
+  if (isNaN(force_N) || isNaN(pressure_Pa) || pressure_Pa === 0) return null;
+  return (force_N / pressure_Pa) / AREA.units[STATE.paAreaUnit];
+}
+
+/* ===================== HTML builders ===================== */
+function unitOptions(units, selected) {
+  return units.map(u => `<option value="${esc(u)}" ${u === selected ? "selected" : ""}>${esc(u)}</option>`).join("");
+}
+function fieldNumber(label, bind, value) {
+  return `<div><label class="field-label">${esc(label)}</label>
+    <input class="field-input" type="text" inputmode="decimal" data-bind="${bind}" data-numeric="1" value="${esc(value)}" /></div>`;
+}
+function fieldText(label, bind, value, placeholder) {
+  return `<div><label class="field-label">${esc(label)}</label>
+    <input class="field-input field-text" type="text" data-bind="${bind}" value="${esc(value)}" placeholder="${esc(placeholder||"")}" /></div>`;
+}
+function fieldSelect(label, bind, units, selected) {
+  return `<div><label class="field-label">${esc(label)}</label>
+    <select class="field-select" data-bind="${bind}">${unitOptions(units, selected)}</select></div>`;
+}
+function twoCol(a, b) { return `<div class="grid-2">${a}${b}</div>`; }
+function pillToggle(bind, options, value) {
+  return `<div class="pill-row">${options.map(o =>
+    `<button type="button" class="pill-btn ${o.key === value ? "active" : ""}" data-pill="${bind}" data-value="${o.key}">${esc(o.label)}</button>`
+  ).join("")}</div>`;
+}
+function chip(label, value) {
+  return `<div class="chip"><div class="chip-label">${esc(label)}</div><div class="chip-value">${esc(value)}</div></div>`;
+}
+function swapSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>`;
+}
+
+/* ===================== Screen render ===================== */
+function renderScreen() {
+  const c = STATE.category;
+  if (["pressure","length","flow","weight","temp"].includes(c)) {
+    const from=effectiveFrom(), to=effectiveTo(), result=calcStandard();
+    return `<div class="screen-row"><span class="screen-label">${esc(from)}</span><button class="swap-btn" id="swapBtn" aria-label="Swap units">${swapSvg()}</button><span class="screen-label">${esc(to)}</span></div><div class="screen-value">${esc(formatResult(result))}</div><div class="screen-unit">${esc(to)}</div>`;
+  }
+  if(c==="loop") { const result=calcLoop(),pct=calcLoopPercent(); return `<div class="screen-row"><span class="screen-label">${STATE.loopMode==="mA-to-eng"?"mA":(esc(STATE.loopUnit)||"ENG")}</span><button class="swap-btn" id="loopSwapBtn" aria-label="Swap direction">${swapSvg()}</button><span class="screen-label">${STATE.loopMode==="mA-to-eng"?(esc(STATE.loopUnit)||"ENG"):"mA"}</span></div><div class="screen-value">${typeof result==="number"?esc(formatResult(result)):esc(result||"—")}</div><div class="screen-unit">${STATE.loopMode==="mA-to-eng"?(esc(STATE.loopUnit)||"engineering units"):"mA"}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-ends"><span>4 mA</span><span>20 mA</span></div>`; }
+  if(c==="dpflow") { const d=calcDP(); if(d&&d.invalid)return `<div class="screen-sub">DP → FLOW · √ EXTRACTION</div><div class="screen-value" style="font-size:22px;">INVALID</div><div class="screen-unit">DP BELOW RANGE</div>`; const val=d?(STATE.dpSolveFrom==="dp"?d.flowResult:d.dpDisplay):null; const unit=STATE.dpSolveFrom==="dp"?(esc(STATE.flowUnitLabel)||"flow units"):esc(STATE.dpValueUnit); return `<div class="screen-sub">${STATE.dpSolveFrom==="dp"?"DP → FLOW":"FLOW → DP"} · ${STATE.dpSqrt==="sqrt"?"√ EXTRACTION":"LINEAR"}</div><div class="screen-value">${esc(formatResult(val))}</div><div class="screen-unit">${unit}</div><div class="chip-row">${chip("DP mA",d?formatResult(d.dpMA):"—")}${chip("FLOW mA",d?formatResult(d.flowMA):"—")}</div>`; }
+  if(c==="cylinder") { const r=calcCylinder(); let body; if(STATE.cylSolve==="volume")body=`<div class="screen-value">${esc(formatResult(r?r.volumeResult:null))}</div><div class="screen-unit">${esc(STATE.cylVolumeUnit)}</div>`; else if(STATE.cylSolve==="height")body=`<div class="screen-value">${esc(formatResult(r?r.heightResult:null))}</div><div class="screen-unit">${esc(STATE.cylHeightUnit)}</div>`; else body=`<div class="screen-value">${esc(formatResult(r?r.diameterResult:null))}</div><div class="screen-unit">${esc(STATE.cylDimUnit)} (diameter)</div><div class="chip-row">${chip(`RADIUS (${STATE.cylDimUnit})`,r?formatResult(r.radiusResult):"—")}${chip(`CIRCUM. (${STATE.cylDimUnit})`,r?formatResult(r.circumferenceResult):"—")}</div>`; return `<div class="screen-sub">SOLVING FOR ${STATE.cylSolve.toUpperCase()}</div>${body}`; }
+  if(c==="radar") { const result=calcRadar(),vol=calcRadarVolume(); return `<div class="screen-sub">LEVEL = REF − MEASURED ${STATE.radarOffsetSign==="add"?"+ OFFSET":"− OFFSET"}</div><div class="screen-value">${esc(formatResult(result))}</div><div class="screen-unit">${esc(STATE.radarOutputUnit)} (calculated level)</div>${STATE.radarVolumeOn==="on"?`<div class="chip-row">${chip(`VOLUME (${STATE.radarVolumeUnit})`,vol!==null?formatResult(vol):"—")}</div>`:""}`; }
+  if(c==="force") { if(STATE.forceCalcMode==="ma"){const result=calcForceMA(),unit=STATE.forceSolve==="force"?STATE.forceForceUnit:STATE.forceSolve==="mass"?STATE.forceMassUnit:STATE.forceAccelUnit; return `<div class="screen-sub">F = m × a · SOLVING FOR ${STATE.forceSolve.toUpperCase()}</div><div class="screen-value">${esc(formatResult(result))}</div><div class="screen-unit">${esc(unit)}</div>`;} const result=calcPA(),unit=STATE.paSolve==="pressure"?STATE.paPressureUnit:STATE.paSolve==="force"?STATE.forceForceUnit:STATE.paAreaUnit; return `<div class="screen-sub">P = F ÷ A · SOLVING FOR ${STATE.paSolve.toUpperCase()}</div><div class="screen-value">${esc(formatResult(result))}</div><div class="screen-unit">${esc(unit)}</div>`; }
+  if(c==="electrical") { const r=calcElectrical(); return `<div class="screen-sub">${STATE.electricalMode==="ohm"?"OHM'S LAW":"ELECTRICAL POWER"} · ${r?esc(r.note):"CHECK INPUTS"}</div><div class="screen-value">${esc(r?formatResult(r.value):"—")}</div><div class="screen-unit">${r?esc(r.unit):"RESULT"}</div>`; }
+  if(c==="vdrop") { const r=calcVoltageDrop(); return `<div class="screen-sub">${STATE.vdropMode==="3ph"?"3-PHASE":"DC / SINGLE-PHASE"} VOLTAGE DROP</div><div class="screen-value">${esc(r?formatResult(r.drop):"—")}</div><div class="screen-unit">V DROP</div>${r?`<div class="chip-row">${chip("DROP %",formatResult(r.pct))}${chip("REMAINING V",formatResult(r.remaining))}</div>`:""}`; }
+  if(c==="density") { const r=calcDensity(); const unit=STATE.densitySolve==="density"?"kg/m³":STATE.densitySolve==="mass"?"kg":"m³"; return `<div class="screen-sub">SOLVING FOR ${STATE.densitySolve.toUpperCase()}</div><div class="screen-value">${esc(r!==null?formatResult(r):"—")}</div><div class="screen-unit">${unit}</div>`; }
+  if(c==="calculator") {
+    if(STATE.calcMode==="calc") return `<div class="screen-sub">ENGINEERING CALCULATOR</div><div class="screen-value" style="font-size:28px;">${esc(STATE.calcResult||"—")}</div><div class="screen-unit">RESULT</div>`;
+    const r=calcBaseConverter(); return `<div class="screen-sub">BASE CONVERTER · ${STATE.baseInputBase.toUpperCase()}</div><div class="screen-value" style="font-size:25px;">${esc(r?r.dec:"ERROR")}</div><div class="screen-unit">DECIMAL</div><div class="chip-row">${chip("BINARY",r?r.bin:"—")}${chip("HEX",r?r.hex:"—")}</div>`;
+  }
+  if(c==="plc") {
+    if(STATE.plcMode==="bits") { const r=calcPLCBitTool(); return `<div class="screen-sub">${r?`${r.width}-BIT · BIT ${STATE.plcBitIndex} = ${r.bit}`:"CHECK INPUTS"}</div><div class="screen-value">${esc(r?r.hex:"—")}</div><div class="screen-unit">SIGNED ${esc(r?r.signed:"—")}</div>${r?`<div class="chip-row">${chip("UNSIGNED",r.unsigned.toString())}${chip("BINARY",r.binary)}</div>`:""}`; }
+    if(STATE.plcMode==="ieee") { const r=calcIEEE(); return `<div class="screen-sub">IEEE-754 FLOAT32 · ${STATE.ieeeOrder}</div><div class="screen-value">${esc(r?calcFormat(r.float):"—")}</div><div class="screen-unit">${esc(r?r.hex:"—")} HEX</div>`; }
+    if(STATE.plcMode==="modbus") { const r=calcModbus(); return `<div class="screen-sub">MODBUS ${STATE.modbusMode}-BIT · ${STATE.modbusOrder}</div><div class="screen-value">${esc(r?r.hex:"—")}</div><div class="screen-unit">${r?(STATE.modbusMode==="16"?`UINT16 ${r.u16} · INT16 ${r.signed}`:`UINT32 ${r.u32} · INT32 ${r.signed}`):"CHECK REGISTERS"}</div>`; }
+    const r=calcLoopDiagnostic(); return `<div class="screen-sub">4–20 mA DIAGNOSTIC · ${STATE.loopDiagStandard.toUpperCase()}</div><div class="screen-value" style="font-size:24px;">${esc(r?r.state:"—")}</div><div class="screen-unit">${esc(r?r.detail:"CHECK CURRENT")}</div>`;
+  }
+  if(c==="settings") return `<div class="screen-sub">APP SETTINGS</div><div class="screen-value" style="font-size:24px;">${esc(THEMES[STATE.theme].label.toUpperCase())}</div><div class="screen-unit">THEME</div>`;
+  return "";
+}
+
+function renderControls() {
+  const c=STATE.category;
+  if(["pressure","length","flow","weight","temp"].includes(c)){const keys=unitKeysForStandard(),t=STATE.standardTabs[c];return `${fieldNumber("INPUT VALUE",`standardTabs.${c}.inputValue`,t.inputValue)}${twoCol(fieldSelect("FROM",`standardTabs.${c}.fromUnit`,keys,effectiveFrom()),fieldSelect("TO",`standardTabs.${c}.toUnit`,keys,effectiveTo()))}`;}
+  if(c==="loop")return `${twoCol(fieldNumber("RANGE LOW (0%)","loopLow",STATE.loopLow),fieldNumber("RANGE HIGH (100%)","loopHigh",STATE.loopHigh))}${fieldText("ENGINEERING UNIT LABEL","loopUnit",STATE.loopUnit,"e.g. kPa, mm, m³/h")}${fieldNumber(STATE.loopMode==="mA-to-eng"?"INPUT — mA":`INPUT — ${STATE.loopUnit||"eng. units"}`,"loopInput",STATE.loopInput)}`;
+  if(c==="dpflow"){const p=Object.keys(PRESSURE.units);let o=`<div><label class="field-label">EXTRACTION</label>${pillToggle("dpSqrt",[{key:"sqrt",label:"√ SQUARE ROOT"},{key:"linear",label:"LINEAR"}],STATE.dpSqrt)}</div><div><label class="field-label">SOLVE FROM</label>${pillToggle("dpSolveFrom",[{key:"dp",label:"DP VALUE"},{key:"flow",label:"FLOW VALUE"}],STATE.dpSolveFrom)}</div>${twoCol(fieldNumber("DP LOW (0%)","dpRangeLow",STATE.dpRangeLow),fieldNumber("DP HIGH (100%)","dpRangeHigh",STATE.dpRangeHigh))}${fieldSelect("DP RANGE UNIT","dpRangeUnit",p,STATE.dpRangeUnit)}${twoCol(fieldNumber("FLOW LOW (0%)","flowRangeLow",STATE.flowRangeLow),fieldNumber("FLOW HIGH (100%)","flowRangeHigh",STATE.flowRangeHigh))}${fieldText("FLOW ENGINEERING UNIT","flowUnitLabel",STATE.flowUnitLabel,"e.g. m³/h, L/min, GPM")}`; if(STATE.dpSolveFrom==="dp")o+=twoCol(fieldNumber("DP VALUE","dpValue",STATE.dpValue),fieldSelect("DP VALUE UNIT","dpValueUnit",p,STATE.dpValueUnit));else o+=fieldNumber(`FLOW VALUE (${STATE.flowUnitLabel||"units"})`,"flowValue",STATE.flowValue);return o;}
+  if(c==="cylinder"){const l=Object.keys(LENGTH.units),v=Object.keys(VOLUME.units);let o=`<div><label class="field-label">SOLVE FOR</label>${pillToggle("cylSolve",[{key:"volume",label:"VOLUME"},{key:"height",label:"HEIGHT"},{key:"diameter",label:"DIAMETER"}],STATE.cylSolve)}</div>`;if(STATE.cylSolve!=="diameter"){o+=`<div><label class="field-label">CIRCLE DIMENSION INPUT</label>${pillToggle("cylDimType",[{key:"diameter",label:"DIAMETER"},{key:"radius",label:"RADIUS"},{key:"circumference",label:"CIRCUM."}],STATE.cylDimType)}</div>`;const dl=STATE.cylDimType==="circumference"?"CIRCUM. VALUE":`${STATE.cylDimType.toUpperCase()} VALUE`;o+=twoCol(fieldNumber(dl,"cylDimValue",STATE.cylDimValue),fieldSelect("UNIT","cylDimUnit",l,STATE.cylDimUnit));}else o+=fieldSelect("RESULT UNIT (LENGTH)","cylDimUnit",l,STATE.cylDimUnit);if(STATE.cylSolve!=="height")o+=twoCol(fieldNumber("HEIGHT VALUE","cylHeightValue",STATE.cylHeightValue),fieldSelect("HEIGHT UNIT","cylHeightUnit",l,STATE.cylHeightUnit));else o+=fieldSelect("HEIGHT RESULT UNIT","cylHeightUnit",l,STATE.cylHeightUnit);if(STATE.cylSolve!=="volume")o+=twoCol(fieldNumber("VOLUME VALUE","cylVolumeValue",STATE.cylVolumeValue),fieldSelect("VOLUME UNIT","cylVolumeUnit",v,STATE.cylVolumeUnit));else o+=fieldSelect("VOLUME RESULT UNIT","cylVolumeUnit",v,STATE.cylVolumeUnit);return o;}
+  if(c==="radar"){const l=Object.keys(LENGTH.units),v=Object.keys(VOLUME.units);let o=`${twoCol(fieldNumber("REFERENCE DISTANCE","radarRef",STATE.radarRef),fieldSelect("UNIT","radarRefUnit",l,STATE.radarRefUnit))}${twoCol(fieldNumber("RADAR MEASURED DISTANCE","radarMeasured",STATE.radarMeasured),fieldSelect("UNIT","radarMeasuredUnit",l,STATE.radarMeasuredUnit))}<div><label class="field-label">OFFSET</label>${pillToggle("radarOffsetSign",[{key:"add",label:"ADD"},{key:"subtract",label:"SUBTRACT"}],STATE.radarOffsetSign)}</div>${twoCol(fieldNumber("OFFSET VALUE","radarOffset",STATE.radarOffset),fieldSelect("UNIT","radarOffsetUnit",l,STATE.radarOffsetUnit))}${fieldSelect("LEVEL RESULT UNIT","radarOutputUnit",l,STATE.radarOutputUnit)}<div><label class="field-label">TANK VOLUME</label>${pillToggle("radarVolumeOn",[{key:"off",label:"OFF"},{key:"on",label:"ON"}],STATE.radarVolumeOn)}</div>`;if(STATE.radarVolumeOn==="on"){o+=`<div><label class="field-label">TANK DIMENSION INPUT</label>${pillToggle("radarDimType",[{key:"diameter",label:"DIAMETER"},{key:"radius",label:"RADIUS"},{key:"circumference",label:"CIRCUM."}],STATE.radarDimType)}</div>`;const dl=STATE.radarDimType==="circumference"?"CIRCUM. VALUE":`${STATE.radarDimType.toUpperCase()} VALUE`;o+=twoCol(fieldNumber(dl,"radarDimValue",STATE.radarDimValue),fieldSelect("UNIT","radarDimUnit",l,STATE.radarDimUnit))+fieldSelect("VOLUME RESULT UNIT","radarVolumeUnit",v,STATE.radarVolumeUnit);}return o;}
+  if(c==="force"){const w=Object.keys(WEIGHT.units),a=Object.keys(ACCEL.units),f=Object.keys(FORCE.units),ar=Object.keys(AREA.units),p=Object.keys(PRESSURE.units);let o=`<div><label class="field-label">CALCULATION</label>${pillToggle("forceCalcMode",[{key:"ma",label:"F = m × a"},{key:"pa",label:"P = F ÷ A"}],STATE.forceCalcMode)}</div>`;if(STATE.forceCalcMode==="ma"){o+=`<div><label class="field-label">SOLVE FOR</label>${pillToggle("forceSolve",[{key:"force",label:"FORCE"},{key:"mass",label:"MASS"},{key:"accel",label:"ACCEL."}],STATE.forceSolve)}</div>`;o+=STATE.forceSolve!=="mass"?twoCol(fieldNumber("MASS VALUE","forceMassValue",STATE.forceMassValue),fieldSelect("MASS UNIT","forceMassUnit",w,STATE.forceMassUnit)):fieldSelect("MASS RESULT UNIT","forceMassUnit",w,STATE.forceMassUnit);o+=STATE.forceSolve!=="accel"?twoCol(fieldNumber("ACCEL. VALUE","forceAccelValue",STATE.forceAccelValue),fieldSelect("ACCEL. UNIT","forceAccelUnit",a,STATE.forceAccelUnit)):fieldSelect("ACCEL. RESULT UNIT","forceAccelUnit",a,STATE.forceAccelUnit);o+=STATE.forceSolve!=="force"?twoCol(fieldNumber("FORCE VALUE","forceForceValue",STATE.forceForceValue),fieldSelect("FORCE UNIT","forceForceUnit",f,STATE.forceForceUnit)):fieldSelect("FORCE RESULT UNIT","forceForceUnit",f,STATE.forceForceUnit);}else{o+=`<div><label class="field-label">SOLVE FOR</label>${pillToggle("paSolve",[{key:"pressure",label:"PRESSURE"},{key:"force",label:"FORCE"},{key:"area",label:"AREA"}],STATE.paSolve)}</div>`;o+=STATE.paSolve!=="force"?twoCol(fieldNumber("FORCE VALUE","forceForceValue",STATE.forceForceValue),fieldSelect("FORCE UNIT","forceForceUnit",f,STATE.forceForceUnit)):fieldSelect("FORCE RESULT UNIT","forceForceUnit",f,STATE.forceForceUnit);o+=STATE.paSolve!=="area"?twoCol(fieldNumber("AREA VALUE","paAreaValue",STATE.paAreaValue),fieldSelect("AREA UNIT","paAreaUnit",ar,STATE.paAreaUnit)):fieldSelect("AREA RESULT UNIT","paAreaUnit",ar,STATE.paAreaUnit);o+=STATE.paSolve!=="pressure"?twoCol(fieldNumber("PRESSURE VALUE","paPressureValue",STATE.paPressureValue),fieldSelect("PRESSURE UNIT","paPressureUnit",p,STATE.paPressureUnit)):fieldSelect("PRESSURE RESULT UNIT","paPressureUnit",p,STATE.paPressureUnit);}return o;}
+  if(c==="electrical"){let o=`<div><label class="field-label">CALCULATION</label>${pillToggle("electricalMode",[{key:"ohm",label:"OHM'S LAW"},{key:"power",label:"POWER"}],STATE.electricalMode)}</div>`;if(STATE.electricalMode==="ohm"){o+=`<div><label class="field-label">SOLVE FOR</label>${pillToggle("electricalSolve",[{key:"voltage",label:"VOLTAGE"},{key:"current",label:"CURRENT"},{key:"resistance",label:"RESISTANCE"},{key:"power",label:"POWER"}],STATE.electricalSolve)}</div>${fieldNumber("VOLTAGE (V)","electricalV",STATE.electricalV)}${fieldNumber("CURRENT (A)","electricalI",STATE.electricalI)}${fieldNumber("RESISTANCE (Ω)","electricalR",STATE.electricalR)}`;}else{o+=`<div><label class="field-label">SYSTEM</label>${pillToggle("electricalPhases",[{key:"1",label:"SINGLE PHASE"},{key:"3",label:"THREE PHASE"}],STATE.electricalPhases)}</div><div><label class="field-label">SOLVE FOR</label>${pillToggle("electricalSolve",[{key:"power",label:"POWER"},{key:"current",label:"CURRENT"},{key:"voltage",label:"VOLTAGE"}],STATE.electricalSolve)}</div>${fieldNumber("VOLTAGE (V)","electricalV",STATE.electricalV)}${fieldNumber("CURRENT (A)","electricalI",STATE.electricalI)}${fieldNumber("POWER (W)","electricalP",STATE.electricalP)}${fieldNumber("POWER FACTOR","electricalPF",STATE.electricalPF)}`;}return o;}
+  if(c==="vdrop") return `<div><label class="field-label">CIRCUIT</label>${pillToggle("vdropMode",[{key:"dc",label:"DC / SINGLE PHASE"},{key:"3ph",label:"3-PHASE AC"}],STATE.vdropMode)}</div>${twoCol(fieldNumber("CABLE LENGTH","vdropLength",STATE.vdropLength),fieldSelect("LENGTH UNIT","vdropLengthUnit",["m","km"],STATE.vdropLengthUnit))}${fieldNumber("LOAD CURRENT (A)","vdropCurrent",STATE.vdropCurrent)}${fieldNumber("CONDUCTOR R (Ω/km)","vdropResistance",STATE.vdropResistance)}${fieldNumber("SYSTEM VOLTAGE (V)","vdropVoltage",STATE.vdropVoltage)}<div class="formula-note">Uses 2 × length for DC/single-phase and √3 × length for three-phase. Enter loop resistance per km for one conductor.</div>`;
+  if(c==="density") return `<div><label class="field-label">SOLVE FOR</label>${pillToggle("densitySolve",[{key:"density",label:"DENSITY"},{key:"mass",label:"MASS"},{key:"volume",label:"VOLUME"}],STATE.densitySolve)}</div>${fieldNumber("MASS","densityMass",STATE.densityMass)}${fieldSelect("MASS UNIT","densityMassUnit",Object.keys(WEIGHT.units),STATE.densityMassUnit)}${fieldNumber("VOLUME","densityVolume",STATE.densityVolume)}${fieldSelect("VOLUME UNIT","densityVolumeUnit",Object.keys(VOLUME.units),STATE.densityVolumeUnit)}${fieldNumber("DENSITY VALUE (kg/m³)","densityValue",STATE.densityValue)}<div class="formula-note">Density is calculated in SI internally. 1 kg/L = 1000 kg/m³.</div>`;
+  if(c==="calculator"){const mode=STATE.calcMode;let o=`<div><label class="field-label">MODE</label>${pillToggle("calcMode",[{key:"calc",label:"CALCULATOR"},{key:"base",label:"BINARY / HEX"}],mode)}</div>`;if(mode==="calc"){o+=`<div class="calculator"><input id="calcExpression" class="calc-expression" type="text" inputmode="none" readonly aria-label="Calculator expression" value="${esc(STATE.calcExpression)}" placeholder="0" /><div class="calc-keypad"><button type="button" class="calc-btn function" data-calc="clear">C</button><button type="button" class="calc-btn function" data-calc="back">⌫</button><button type="button" class="calc-btn function" data-calc="(">(</button><button type="button" class="calc-btn function" data-calc=")">)</button><button type="button" class="calc-btn" data-calc="7">7</button><button type="button" class="calc-btn" data-calc="8">8</button><button type="button" class="calc-btn" data-calc="9">9</button><button type="button" class="calc-btn operator" data-calc="/">÷</button><button type="button" class="calc-btn" data-calc="4">4</button><button type="button" class="calc-btn" data-calc="5">5</button><button type="button" class="calc-btn" data-calc="6">6</button><button type="button" class="calc-btn operator" data-calc="*">×</button><button type="button" class="calc-btn" data-calc="1">1</button><button type="button" class="calc-btn" data-calc="2">2</button><button type="button" class="calc-btn" data-calc="3">3</button><button type="button" class="calc-btn operator" data-calc="-">−</button><button type="button" class="calc-btn" data-calc="0">0</button><button type="button" class="calc-btn" data-calc=".">.</button><button type="button" class="calc-btn function" data-calc="square">x²</button><button type="button" class="calc-btn operator" data-calc="+">+</button><button type="button" class="calc-btn function" data-calc="sqrt">√</button><button type="button" class="calc-btn function" data-calc="^">^</button><button type="button" class="calc-btn equals" data-calc="=">=</button></div><div class="calc-result-note">Parentheses · powers · square · square root · keyboard input</div></div>`;}else{o+=`<div><label class="field-label">INPUT BASE</label>${pillToggle("baseInputBase",[{key:"dec",label:"DECIMAL"},{key:"bin",label:"BINARY"},{key:"hex",label:"HEXADECIMAL"}],STATE.baseInputBase)}</div>${fieldText("VALUE","baseInput",STATE.baseInput,STATE.baseInputBase==="bin"?"e.g. 101101":STATE.baseInputBase==="hex"?"e.g. FF": "e.g. 255")}<div class="base-grid"><div class="base-output"><div class="base-output-label">DECIMAL</div><div class="base-output-value">${esc((calcBaseConverter()||{}).dec||"—")}</div></div><div class="base-output"><div class="base-output-label">BINARY</div><div class="base-output-value">${esc((calcBaseConverter()||{}).bin||"—")}</div></div><div class="base-output"><div class="base-output-label">HEX</div><div class="base-output-value">${esc((calcBaseConverter()||{}).hex||"—")}</div></div></div>`;}return o;}
+  if(c==="plc") {
+    let o=`<div><label class="field-label">TOOL</label>${pillToggle("plcMode",[{key:"bits",label:"BIT / WORD"},{key:"ieee",label:"IEEE-754"},{key:"modbus",label:"MODBUS"},{key:"loopdiag",label:"4–20 mA DIAG."}],STATE.plcMode)}</div>`;
+    if(STATE.plcMode==="bits") { o+=twoCol(fieldSelect("WORD WIDTH","plcWidth",["8","16","32"],STATE.plcWidth),fieldSelect("INPUT BASE","plcInputBase",["dec","bin","hex"],STATE.plcInputBase)); o+=fieldText("VALUE","plcInput",STATE.plcInput,"e.g. FF / 255 / 11111111"); o+=twoCol(fieldNumber("BIT INDEX (0 = LSB)","plcBitIndex",STATE.plcBitIndex),pillToggle("plcBitOp",[{key:"read",label:"READ"},{key:"set",label:"SET"},{key:"clear",label:"CLEAR"},{key:"toggle",label:"TOGGLE"}],STATE.plcBitOp)); o+=`<div class="formula-note">Shows unsigned, signed two’s-complement, binary and hexadecimal. Bit operations apply to the selected width.</div>`; }
+    else if(STATE.plcMode==="ieee") { o+=`<div><label class="field-label">DIRECTION</label>${pillToggle("ieeeMode",[{key:"hex-to-float",label:"HEX → FLOAT"},{key:"float-to-hex",label:"FLOAT → HEX"}],STATE.ieeeMode)}</div>`; o+=fieldSelect("BYTE / WORD ORDER","ieeeOrder",["ABCD","BADC","CDAB","DCBA"],STATE.ieeeOrder); o+=fieldText(STATE.ieeeMode==="hex-to-float"?"HEX FLOAT32":"FLOAT VALUE","ieeeValue",STATE.ieeeValue,"41480000 or 12.5"); o+=`<div class="formula-note">ABCD = normal IEEE byte order. CDAB = 16-bit word swap. BADC/DCBA cover byte-order variants.</div>`; }
+    else if(STATE.plcMode==="modbus") { o+=`<div><label class="field-label">VALUE</label>${pillToggle("modbusMode",[{key:"16",label:"16-BIT REGISTER"},{key:"32",label:"32-BIT / 2 REGISTERS"}],STATE.modbusMode)}</div>`; if(STATE.modbusMode==="16") { o+=fieldText("REGISTER HEX","modbusReg1",STATE.modbusReg1,"0000–FFFF"); o+=fieldSelect("BYTE ORDER","modbusOrder",["AB","BA"],STATE.modbusOrder==="BA"?"BA":"AB"); } else { o+=twoCol(fieldText("REGISTER 1 HEX","modbusReg1",STATE.modbusReg1,"4148"),fieldText("REGISTER 2 HEX","modbusReg2",STATE.modbusReg2,"0000")); o+=fieldSelect("BYTE / WORD ORDER","modbusOrder",["ABCD","BADC","CDAB","DCBA"],STATE.modbusOrder); } o+=`<div class="formula-note">32-bit: ABCD normal, CDAB word-swap, BADC byte-swap, DCBA byte+word swap. 16-bit: AB normal, BA byte-swap.</div>`; }
+    else { o+=`<div><label class="field-label">DIAGNOSTIC STANDARD</label>${pillToggle("loopDiagStandard",[{key:"ne43",label:"NAMUR NE43"},{key:"generic",label:"GENERIC"}],STATE.loopDiagStandard)}</div>`; o+=fieldNumber("LOOP CURRENT (mA)","loopDiagCurrent",STATE.loopDiagCurrent); o+=`<div class="formula-note">NE43-style interpretation: ≤3.6 mA fail-low, 3.6–3.8 underrange, 3.8–20.5 normal, 20.5–21.0 overrange, &gt;21.0 fail-high.</div>`; }
+    return o;
+  }
+  if(c==="settings")return `<div class="settings-card"><label class="field-label">THEME COLOUR</label><div class="theme-swatches">${Object.entries(THEMES).map(([k,t])=>`<button type="button" class="theme-btn theme-${k} ${STATE.theme===k?"active":""}" data-theme="${k}">${esc(t.label)}</button>`).join("")}</div><div class="field-text" style="color:rgba(255,255,255,.85);line-height:1.45;">Theme is saved on this device and applied to the browser/app theme.</div></div>`;
+  return "";
+}
+
+function renderCategoryGrid() {
+  return CATEGORIES.map(cat => `
+    <button type="button" class="category-btn ${cat.key === STATE.category ? "active" : ""}" data-category="${cat.key}">
+      <span class="category-badge">${iconSvg(cat.icon)}</span>
+      <span class="category-label">${esc(cat.label)}</span>
+    </button>`).join("");
+}
+
+/* ===================== Main render + events ===================== */
+function render() {
+  document.getElementById("screen").innerHTML = renderScreen();
+  document.getElementById("categoryGrid").innerHTML = renderCategoryGrid();
+  document.getElementById("controls").innerHTML = renderControls();
+  attachTransientListeners();
+}
+
+function attachTransientListeners() {
+  const swapBtn = document.getElementById("swapBtn");
+  if (swapBtn) swapBtn.addEventListener("click", () => {
+    const f = effectiveFrom(), t = effectiveTo();
+    const tab = STATE.standardTabs[STATE.category];
+    tab.fromUnit = t; tab.toUnit = f;
+    render();
+  });
+  const loopSwapBtn = document.getElementById("loopSwapBtn");
+  if (loopSwapBtn) loopSwapBtn.addEventListener("click", () => {
+    STATE.loopMode = STATE.loopMode === "mA-to-eng" ? "eng-to-mA" : "mA-to-eng";
+    render();
+  });
+}
+
+function getPath(obj, path) {
+  return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+function setPath(obj, path, value) {
+  const parts = path.split(".");
+  let o = obj;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = value;
+}
+
+function sanitizeNumericWithCursor(str, cursorPos) {
+  let out = "";
+  let seenDot = false;
+  let newPos = 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    let keep = false;
+    if (ch === "-" && out.length === 0) keep = true;
+    else if (ch >= "0" && ch <= "9") keep = true;
+    else if (ch === "." && !seenDot) { keep = true; seenDot = true; }
+    if (keep) out += ch;
+    if (i < cursorPos && keep) newPos++;
+  }
+  return { value: out, pos: newPos };
+}
+
+document.addEventListener("input", (e) => {
+  const bind = e.target.getAttribute("data-bind");
+  if (!bind) return;
+  const isNumeric = e.target.getAttribute("data-numeric") === "1";
+  let value = e.target.value;
+  let pos = e.target.selectionStart;
+  if (isNumeric) {
+    const cleaned = sanitizeNumericWithCursor(value, pos);
+    value = cleaned.value;
+    pos = cleaned.pos;
+  }
+  setPath(STATE, bind, value);
+  render();
+  // restore focus and caret to where the user was actually typing
+  const el = document.querySelector(`[data-bind="${bind}"]`);
+  if (el && el.tagName === "INPUT") {
+    el.focus();
+    try { el.setSelectionRange(pos, pos); } catch (err) {}
+  }
+});
+
+document.addEventListener("focusin", (e) => {
+  if (e.target.matches && e.target.matches(".field-input")) {
+    const len = e.target.value.length;
+    setTimeout(() => { try { e.target.setSelectionRange(len, len); } catch (err) {} }, 0);
+  }
+});
+
+document.addEventListener("change", (e) => {
+  const bind = e.target.getAttribute("data-bind");
+  if (bind && e.target.tagName === "SELECT") {
+    setPath(STATE, bind, e.target.value);
+    render();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const themeBtn = e.target.closest("[data-theme]");
+  if (themeBtn) { STATE.theme=themeBtn.getAttribute("data-theme"); applyTheme(STATE.theme); render(); return; }
+  const calcBtn = e.target.closest("[data-calc]");
+  if (calcBtn) {
+    const key=calcBtn.getAttribute("data-calc");
+    if(key==="clear"){STATE.calcExpression="";STATE.calcResult="";}
+    else if(key==="back"){STATE.calcExpression=STATE.calcExpression.slice(0,-1);}
+    else if(key==="square"){ if(STATE.calcExpression) STATE.calcExpression=`(${STATE.calcExpression})^2`; }
+    else if(key==="sqrt"){ STATE.calcExpression += "sqrt("; }
+    else if(key==="="){ try { STATE.calcResult=calcFormat(calculateExpression(STATE.calcExpression)); } catch(err){ STATE.calcResult="ERROR"; } }
+    else { STATE.calcExpression += key; }
+    render(); return;
+  }
+  const catBtn = e.target.closest("[data-category]");
+  if (catBtn) {
+    STATE.category = catBtn.getAttribute("data-category");
+    render();
+    return;
+  }
+  const pillBtn = e.target.closest("[data-pill]");
+  if (pillBtn) {
+    STATE[pillBtn.getAttribute("data-pill")] = pillBtn.getAttribute("data-value");
+    render();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (STATE.category !== "calculator" || STATE.calcMode !== "calc") return;
+  const allowed = "0123456789.+-*/^()";
+  if (allowed.includes(e.key)) { STATE.calcExpression += e.key; render(); }
+  else if (e.key.toLowerCase()==="r") { STATE.calcExpression += "sqrt("; render(); }
+  else if (e.key === "Enter" || e.key === "=") { try { STATE.calcResult=calcFormat(calculateExpression(STATE.calcExpression)); } catch(err){STATE.calcResult="ERROR";} render(); }
+  else if (e.key === "Backspace") { STATE.calcExpression=STATE.calcExpression.slice(0,-1); render(); }
+  else if (e.key.toLowerCase()==="c") { STATE.calcExpression=""; STATE.calcResult=""; render(); }
+});
+
+loadTheme();
+render();
+
+/* Local test mode: service worker and install prompts intentionally disabled. */
+</script>
+</body>
+</html>
