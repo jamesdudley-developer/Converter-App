@@ -401,7 +401,7 @@ const STATE = {
   paSolve: "pressure", paAreaValue: "1", paAreaUnit: "m²",
   paPressureValue: "100", paPressureUnit: "kPa",
 
-  errMode: "standard", errUnit: "kPa", errRef: "100", errMeas: "100.2", errTol: "0.5",
+  errMode: "standard", errUnit: "kPa", errRef: "100", errMeas: "100.2", errTol: "0.25",
   errLRV: "0", errURV: "250", errOutput: "eng", errApplied: "125", errSpanMeas: "125.5", errSpanTol: "0.25",
 
   groupLast: { units:"pressure", instr:"loop", process:"cylinder", elec:"electrical", tools:"calculator" },
@@ -443,8 +443,10 @@ function calcError() {
     const err = meas - ref;
     const pctRdg = ref !== 0 ? (err / Math.abs(ref)) * 100 : null;
     const tol = numOrNull(STATE.errTol);
-    const pass = tol === null ? null : Math.abs(err) <= Math.abs(tol) * (1 + 1e-9);
-    return { err, pctRdg, pass };
+    // Tolerance is ± % of the reference value
+    const tolAbs = tol === null ? null : Math.abs(ref) * Math.abs(tol) / 100;
+    const pass = tolAbs === null ? null : Math.abs(err) <= tolAbs * (1 + 1e-9) + 1e-12;
+    return { err, pctRdg, pass, tolAbs };
   }
   const lrv = numOrNull(STATE.errLRV), urv = numOrNull(STATE.errURV);
   const applied = numOrNull(STATE.errApplied), meas = numOrNull(STATE.errSpanMeas);
@@ -880,7 +882,7 @@ function renderScreen() {
   }
   if(c==="error") {
     const r=calcError(), u=esc(STATE.errUnit||"units");
-    if(STATE.errMode==="standard") return `<div class="screen-sub">ERROR = MEASURED − REFERENCE</div><div class="screen-value">${esc(r?fmtSigned(r.err):"—")}</div><div class="screen-unit">${u} ERROR</div><div class="chip-row">${chip("% OF READING",r&&r.pctRdg!==null?fmtSigned(r.pctRdg)+" %":"—")}${verdictChip(r?r.pass:null)}</div>`;
+    if(STATE.errMode==="standard") return `<div class="screen-sub">ERROR = MEASURED − REFERENCE</div><div class="screen-value">${esc(r?fmtSigned(r.err):"—")}</div><div class="screen-unit">${u} ERROR</div><div class="chip-row">${chip("% OF READING",r&&r.pctRdg!==null?fmtSigned(r.pctRdg)+" %":"—")}${chip(STATE.errUnit?`ALLOWED (${STATE.errUnit})`:"ALLOWED",r&&r.tolAbs!==null?"±"+formatResult(r.tolAbs):"—")}${verdictChip(r?r.pass:null)}</div>`;
     return `<div class="screen-sub">ERROR AS % OF SPAN · ${STATE.errOutput==="ma"?"4–20 mA OUTPUT":"ENG. UNITS"}</div><div class="screen-value">${esc(r?fmtSigned(r.pctSpan):"—")}</div><div class="screen-unit">% OF SPAN${r?` (SPAN ${esc(formatResult(Math.abs(r.span)))} ${u})`:""}</div><div class="chip-row">${chip(`ERROR (${STATE.errUnit||"units"})`,r?fmtSigned(r.errEng):"—")}${STATE.errOutput==="ma"?chip("EXPECTED mA",r?formatResult(r.expectedMA):"—"):""}${verdictChip(r?r.pass:null)}</div>`;
   }
   if(c==="settings") return `<div class="screen-sub">APP SETTINGS</div><div class="screen-value" style="font-size:24px;">${esc(THEMES[STATE.theme].label.toUpperCase())}</div><div class="screen-unit">THEME</div>`;
@@ -912,8 +914,8 @@ function renderControls() {
     const u=STATE.errUnit||"units";
     if(STATE.errMode==="standard"){
       o+=twoCol(fieldNumber("REFERENCE","errRef",STATE.errRef),fieldNumber("MEASURED","errMeas",STATE.errMeas));
-      o+=twoCol(fieldText("UNIT LABEL","errUnit",STATE.errUnit,"e.g. kPa, °C"),fieldNumber(`TOLERANCE ± ${u}`,"errTol",STATE.errTol));
-      o+=`<div class="formula-note">Error = Measured − Reference (true/applied). % of reading = Error ÷ |Reference| × 100. Leave tolerance blank to skip pass/fail.</div>`;
+      o+=twoCol(fieldText("UNIT LABEL","errUnit",STATE.errUnit,"e.g. kPa, °C"),fieldNumber("TOLERANCE ± % OF REF.","errTol",STATE.errTol));
+      o+=`<div class="formula-note">Error = Measured − Reference (true/applied). % of reading = Error ÷ |Reference| × 100. Tolerance is ± % of the reference value (allowed error = |Reference| × Tol ÷ 100). Leave blank to skip pass/fail.</div>`;
     } else {
       o+=twoCol(fieldNumber("LRV (0%)","errLRV",STATE.errLRV),fieldNumber("URV (100%)","errURV",STATE.errURV));
       o+=fieldText("UNIT LABEL","errUnit",STATE.errUnit,"e.g. kPa, °C, mm");
