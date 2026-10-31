@@ -13,7 +13,7 @@ Offline-first PWA for field instrumentation, electrical and PLC troubleshooting 
 - Single- and three-phase power with power factor
 - DC/single-phase and three-phase voltage drop
 - Mass/density/volume
-- Error calculator: standard error (optional tare: weight in − weight out sets the reference) (measured − reference, % of reading) and error as % of span, with 4–20 mA output; tolerance pass/fail as ± % of reference (standard) or ± % of span
+- Error calculator: standard error (optional tare: weight out − weight in sets the reference) (measured − reference, % of reading) and error as % of span, with 4–20 mA output; tolerance pass/fail as ± % of reference (standard) or ± % of span
 - Engineering calculator with parentheses, powers, square and square root
 - Decimal/binary/hexadecimal conversion using arbitrary-size integers
 
