@@ -929,7 +929,7 @@ function renderControls() {
     if(STATE.errMode==="standard"){
       o+=`<div><label class="field-label">TARE</label>${pillToggle("errTareOn",[{key:"off",label:"OFF"},{key:"on",label:"ON · OUT − IN"}],STATE.errTareOn)}</div>`;
       if(STATE.errTareOn==="on"){
-        o+=twoCol(fieldNumber(`WEIGHT OUT (${u})`,"errTareVal",STATE.errTareVal),fieldNumber(`WEIGHT IN (${u})`,"errGross",STATE.errGross));
+        o+=twoCol(fieldNumber(`WEIGHT IN (${u})`,"errGross",STATE.errGross),fieldNumber(`WEIGHT OUT (${u})`,"errTareVal",STATE.errTareVal));
         o+=twoCol(`<div><label class="field-label">REFERENCE (NET)</label><input class="field-input field-readonly" type="text" readonly tabindex="-1" value="${esc(STATE.errRef===""?"—":STATE.errRef)}" aria-label="Reference, net of tare" /></div>`,fieldNumber("MEASURED","errMeas",STATE.errMeas));
       } else {
         o+=twoCol(fieldNumber("REFERENCE","errRef",STATE.errRef),fieldNumber("MEASURED","errMeas",STATE.errMeas));
