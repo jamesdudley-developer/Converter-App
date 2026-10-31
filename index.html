@@ -68,9 +68,27 @@
   .chip-label { font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--white); letter-spacing:0.1em; opacity:0.85; }
   .chip-value { font-family:'JetBrains Mono', monospace; font-size:14px; color:var(--amber); font-variant-numeric: tabular-nums; }
 
-  .category-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:16px; }
+  .category-grid { margin-bottom:16px; }
+  .group-row { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:8px; }
+  .group-card {
+    border:none; border-radius:12px; padding:9px 2px 7px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    background:var(--tabInactiveBg); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+    font-family:'IBM Plex Mono', monospace; font-size:9.5px; font-weight:600; color:var(--white); letter-spacing:0.03em;
+  }
+  .group-card svg { width:18px; height:18px; }
+  .group-card.active {
+    background: linear-gradient(160deg, var(--tabActiveFrom), var(--tabActiveTo));
+    box-shadow: inset 0 0 0 1.5px rgba(255,182,39,0.7), 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .tool-card {
+    border-radius:14px; padding:10px 10px 10px; background:rgba(0,0,0,0.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), inset 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .tool-card-title { font-family:'IBM Plex Mono', monospace; font-size:9px; font-weight:600; letter-spacing:0.18em; color:var(--white); opacity:0.75; margin:0 2px 8px; }
+  .tool-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(92px, 1fr)); gap:6px; }
   .category-btn {
-    border-radius:12px; padding:8px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;
+    border-radius:10px; padding:8px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;
     border:none; cursor:pointer; background:var(--tabInactiveBg);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
   }
@@ -185,7 +203,7 @@
     <div class="header">
       <div>
         <div class="header-eyebrow">FIELD REFERENCE</div>
-        <div class="header-title">Field Instrument Converter <span>v4.1</span></div>
+        <div class="header-title">Field Instrument Converter <span>v4.2</span></div>
       </div>
       <div class="header-ready">&#9679; READY</div>
     </div>
@@ -194,7 +212,7 @@
     <div id="categoryGrid" class="category-grid"></div>
     <div id="controls" class="controls"></div>
 
-    <div class="footer"><span>FIELD INSTRUMENT CONVERTER · v4.1</span></div>
+    <div class="footer"><span>FIELD INSTRUMENT CONVERTER · v4.2</span></div>
   </div>
 
   <div id="installOverlay" class="install-overlay" style="display:none;">
@@ -208,7 +226,7 @@
 <script>
 /* ===================== Conversion tables ===================== */
 const PRESSURE = { units: {
-  Pa:1, kPa:1000, MPa:1e6, bar:1e5, mbar:100, psi:6894.757293168,
+  Pa:1, hPa:100, kPa:1000, MPa:1e6, bar:1e5, mbar:100, psi:6894.757293168,
   "kgf/cm²":98066.5, atm:101325, "mmH₂O":9.80665, mmHg:133.322387415,
   "inH₂O":249.0889, inHg:3386.389
 }};
@@ -267,6 +285,12 @@ const ICONS = {
   signal: `<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>`,
   cpu: `<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M18 9h4M2 15h4M18 15h4"/>`,
   move: `<path d="M12 2v20"/><path d="m15 19-3 3-3-3"/><path d="m19 9 3 3-3 3"/><path d="M2 12h20"/><path d="m5 9-3 3 3 3"/><path d="m9 5 3-3 3 3"/>`,
+  target: `<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>`,
+  beaker: `<path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/>`,
+  cable: `<path d="M2 12h4l3-8 4 16 3-8h6"/>`,
+  calc: `<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>`,
+  sliders: `<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>`,
+  wrench: `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
 };
 function iconSvg(name) {
   return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
@@ -284,12 +308,23 @@ const CATEGORIES = [
   { key:"radar", label:"Radar Level", icon:"signal" },
   { key:"force", label:"Force / P-A", icon:"move" },
   { key:"electrical", label:"Electrical", icon:"zap" },
-  { key:"vdrop", label:"Voltage Drop", icon:"activity" },
-  { key:"density", label:"Mass / Density", icon:"weight" },
-  { key:"calculator", label:"Calculator / Bases", icon:"database" },
-  { key:"settings", label:"Settings", icon:"gauge" },
-  { key:"plc", label:"PLC / Instrumentation", icon:"cpu" },
+  { key:"vdrop", label:"Voltage Drop", icon:"cable" },
+  { key:"density", label:"Mass / Density", icon:"beaker" },
+  { key:"calculator", label:"Calculator / Bases", icon:"calc" },
+  { key:"settings", label:"Settings", icon:"sliders" },
+  { key:"plc", label:"PLC / Modbus", icon:"cpu" },
+  { key:"error", label:"Error Calc", icon:"target" },
 ];
+
+/* Tabs are grouped into cards so only one group's tools show at a time. */
+const GROUPS = [
+  { key:"units",   label:"Units",   title:"UNIT CONVERSION",  icon:"ruler",    tabs:["pressure","length","flow","weight","temp"] },
+  { key:"instr",   label:"Instr.",  title:"INSTRUMENTATION",  icon:"gauge",    tabs:["loop","error","dpflow","radar","plc"] },
+  { key:"process", label:"Process", title:"PROCESS & MECHANICAL", icon:"database", tabs:["cylinder","density","force"] },
+  { key:"elec",    label:"Elec.",   title:"ELECTRICAL",       icon:"zap",      tabs:["electrical","vdrop"] },
+  { key:"tools",   label:"Tools",   title:"TOOLS",            icon:"wrench",   tabs:["calculator","settings"] },
+];
+function groupOf(cat) { return (GROUPS.find(g => g.tabs.includes(cat)) || GROUPS[0]).key; }
 
 /* ===================== Helpers ===================== */
 function convertLinear(value, fromUnit, toUnit, table) {
@@ -365,7 +400,75 @@ const STATE = {
   forceForceValue: "100", forceForceUnit: "N",
   paSolve: "pressure", paAreaValue: "1", paAreaUnit: "m²",
   paPressureValue: "100", paPressureUnit: "kPa",
+
+  errMode: "standard", errUnit: "kPa", errRef: "100", errMeas: "100.2", errTol: "0.5",
+  errLRV: "0", errURV: "250", errOutput: "eng", errApplied: "125", errSpanMeas: "125.5", errSpanTol: "0.25",
+
+  groupLast: { units:"pressure", instr:"loop", process:"cylinder", elec:"electrical", tools:"calculator" },
 };
+
+/* ===================== Persistence: last values/units per tab ===================== */
+const SAVE_KEY = "fieldConverterState.v1";
+const NO_PERSIST = ["calcResult"];
+function mergeSaved(target, saved) {
+  for (const k of Object.keys(saved)) {
+    if (!(k in target) || NO_PERSIST.includes(k)) continue;
+    const tv = target[k], sv = saved[k];
+    if (tv && typeof tv === "object" && sv && typeof sv === "object") mergeSaved(tv, sv);
+    else if (sv === null || tv === null || typeof sv === typeof tv) target[k] = sv;
+  }
+}
+function loadState() {
+  try { const raw = localStorage.getItem(SAVE_KEY); if (raw) mergeSaved(STATE, JSON.parse(raw)); } catch (e) {}
+  if (!CATEGORIES.some(c => c.key === STATE.category)) STATE.category = "pressure";
+}
+function writeState() {
+  try {
+    const copy = Object.assign({}, STATE); NO_PERSIST.forEach(k => delete copy[k]);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(copy));
+  } catch (e) {}
+}
+let saveTimer = null;
+function saveState() { clearTimeout(saveTimer); saveTimer = setTimeout(writeState, 250); }
+window.addEventListener("pagehide", writeState);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") writeState(); });
+
+/* ===================== Error calculator ===================== */
+function numOrNull(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
+function fmtSigned(n) { const s = formatResult(n); return (typeof n === "number" && n > 0) ? "+" + s : s; }
+function calcError() {
+  if (STATE.errMode === "standard") {
+    const ref = numOrNull(STATE.errRef), meas = numOrNull(STATE.errMeas);
+    if (ref === null || meas === null) return null;
+    const err = meas - ref;
+    const pctRdg = ref !== 0 ? (err / Math.abs(ref)) * 100 : null;
+    const tol = numOrNull(STATE.errTol);
+    const pass = tol === null ? null : Math.abs(err) <= Math.abs(tol) * (1 + 1e-9);
+    return { err, pctRdg, pass };
+  }
+  const lrv = numOrNull(STATE.errLRV), urv = numOrNull(STATE.errURV);
+  const applied = numOrNull(STATE.errApplied), meas = numOrNull(STATE.errSpanMeas);
+  if ([lrv, urv, applied, meas].includes(null) || urv === lrv) return null;
+  const span = urv - lrv;
+  let pctSpan, errEng, expectedMA = null, errMA = null;
+  if (STATE.errOutput === "ma") {
+    expectedMA = 4 + 16 * (applied - lrv) / span;
+    errMA = meas - expectedMA;
+    pctSpan = (errMA / 16) * 100;
+    errEng = (errMA / 16) * span;
+  } else {
+    errEng = meas - applied;
+    pctSpan = (errEng / Math.abs(span)) * 100;
+  }
+  const tol = numOrNull(STATE.errSpanTol);
+  const pass = tol === null ? null : Math.abs(pctSpan) <= Math.abs(tol) * (1 + 1e-9);
+  return { span, pctSpan, errEng, expectedMA, errMA, pass };
+}
+function verdictChip(pass) {
+  const txt = pass === null ? "—" : pass ? "PASS" : "FAIL";
+  const col = pass === null ? "" : pass ? "color:#2FE6C4;" : "color:#FF6B6B;";
+  return `<div class="chip"><div class="chip-label">RESULT</div><div class="chip-value" style="${col}font-weight:700;">${txt}</div></div>`;
+}
 
 
 const THEMES = {
@@ -775,6 +878,11 @@ function renderScreen() {
     if(STATE.plcMode==="modbus") { const r=calcModbus(); return `<div class="screen-sub">MODBUS ${STATE.modbusMode}-BIT · ${STATE.modbusOrder}</div><div class="screen-value">${esc(r?r.hex:"—")}</div><div class="screen-unit">${r?(STATE.modbusMode==="16"?`UINT16 ${r.u16} · INT16 ${r.signed}`:`UINT32 ${r.u32} · INT32 ${r.signed}`):"CHECK REGISTERS"}</div>`; }
     const r=calcLoopDiagnostic(); return `<div class="screen-sub">4–20 mA DIAGNOSTIC · ${STATE.loopDiagStandard.toUpperCase()}</div><div class="screen-value" style="font-size:24px;">${esc(r?r.state:"—")}</div><div class="screen-unit">${esc(r?r.detail:"CHECK CURRENT")}</div>`;
   }
+  if(c==="error") {
+    const r=calcError(), u=esc(STATE.errUnit||"units");
+    if(STATE.errMode==="standard") return `<div class="screen-sub">ERROR = MEASURED − REFERENCE</div><div class="screen-value">${esc(r?fmtSigned(r.err):"—")}</div><div class="screen-unit">${u} ERROR</div><div class="chip-row">${chip("% OF READING",r&&r.pctRdg!==null?fmtSigned(r.pctRdg)+" %":"—")}${verdictChip(r?r.pass:null)}</div>`;
+    return `<div class="screen-sub">ERROR AS % OF SPAN · ${STATE.errOutput==="ma"?"4–20 mA OUTPUT":"ENG. UNITS"}</div><div class="screen-value">${esc(r?fmtSigned(r.pctSpan):"—")}</div><div class="screen-unit">% OF SPAN${r?` (SPAN ${esc(formatResult(Math.abs(r.span)))} ${u})`:""}</div><div class="chip-row">${chip(`ERROR (${STATE.errUnit||"units"})`,r?fmtSigned(r.errEng):"—")}${STATE.errOutput==="ma"?chip("EXPECTED mA",r?formatResult(r.expectedMA):"—"):""}${verdictChip(r?r.pass:null)}</div>`;
+  }
   if(c==="settings") return `<div class="screen-sub">APP SETTINGS</div><div class="screen-value" style="font-size:24px;">${esc(THEMES[STATE.theme].label.toUpperCase())}</div><div class="screen-unit">THEME</div>`;
   return "";
 }
@@ -799,16 +907,41 @@ function renderControls() {
     else { o+=`<div><label class="field-label">DIAGNOSTIC STANDARD</label>${pillToggle("loopDiagStandard",[{key:"ne43",label:"NAMUR NE43"},{key:"generic",label:"GENERIC"}],STATE.loopDiagStandard)}</div>`; o+=fieldNumber("LOOP CURRENT (mA)","loopDiagCurrent",STATE.loopDiagCurrent); o+=`<div class="formula-note">NE43-style interpretation: ≤3.6 mA fail-low, 3.6–3.8 underrange, 3.8–20.5 normal, 20.5–21.0 overrange, &gt;21.0 fail-high.</div>`; }
     return o;
   }
+  if(c==="error"){
+    let o=`<div><label class="field-label">CALCULATION</label>${pillToggle("errMode",[{key:"standard",label:"STANDARD ERROR"},{key:"span",label:"% OF SPAN"}],STATE.errMode)}</div>`;
+    const u=STATE.errUnit||"units";
+    if(STATE.errMode==="standard"){
+      o+=twoCol(fieldNumber("REFERENCE","errRef",STATE.errRef),fieldNumber("MEASURED","errMeas",STATE.errMeas));
+      o+=twoCol(fieldText("UNIT LABEL","errUnit",STATE.errUnit,"e.g. kPa, °C"),fieldNumber(`TOLERANCE ± ${u}`,"errTol",STATE.errTol));
+      o+=`<div class="formula-note">Error = Measured − Reference (true/applied). % of reading = Error ÷ |Reference| × 100. Leave tolerance blank to skip pass/fail.</div>`;
+    } else {
+      o+=twoCol(fieldNumber("LRV (0%)","errLRV",STATE.errLRV),fieldNumber("URV (100%)","errURV",STATE.errURV));
+      o+=fieldText("UNIT LABEL","errUnit",STATE.errUnit,"e.g. kPa, °C, mm");
+      o+=`<div><label class="field-label">MEASURED AS</label>${pillToggle("errOutput",[{key:"eng",label:"ENG. UNITS"},{key:"ma",label:"4–20 mA OUTPUT"}],STATE.errOutput)}</div>`;
+      o+=twoCol(fieldNumber(`APPLIED (${u})`,"errApplied",STATE.errApplied),fieldNumber(STATE.errOutput==="ma"?"MEASURED (mA)":`MEASURED (${u})`,"errSpanMeas",STATE.errSpanMeas));
+      o+=fieldNumber("TOLERANCE ± % OF SPAN","errSpanTol",STATE.errSpanTol);
+      o+=`<div class="formula-note">% span = (Measured − Applied) ÷ (URV − LRV) × 100. For mA: expected = 4 + 16 × (Applied − LRV) ÷ span, % span = (mA − expected) ÷ 16 × 100.</div>`;
+    }
+    return o;
+  }
   if(c==="settings")return `<div class="settings-card"><label class="field-label">THEME COLOUR</label><div class="theme-swatches">${Object.entries(THEMES).map(([k,t])=>`<button type="button" class="theme-btn theme-${k} ${STATE.theme===k?"active":""}" data-theme="${k}">${esc(t.label)}</button>`).join("")}</div><div class="field-text" style="color:rgba(255,255,255,.85);line-height:1.45;">Theme is saved on this device and applied to the browser/app theme.</div></div>`;
   return "";
 }
 
 function renderCategoryGrid() {
-  return CATEGORIES.map(cat => `
+  const gKey = groupOf(STATE.category);
+  const group = GROUPS.find(g => g.key === gKey);
+  const groupRow = GROUPS.map(g => `
+    <button type="button" class="group-card ${g.key === gKey ? "active" : ""}" data-group="${g.key}">
+      ${iconSvg(g.icon)}<span>${esc(g.label)}</span>
+    </button>`).join("");
+  const tools = group.tabs.map(k => CATEGORIES.find(c => c.key === k)).filter(Boolean).map(cat => `
     <button type="button" class="category-btn ${cat.key === STATE.category ? "active" : ""}" data-category="${cat.key}">
       <span class="category-badge">${iconSvg(cat.icon)}</span>
       <span class="category-label">${esc(cat.label)}</span>
     </button>`).join("");
+  return `<div class="group-row">${groupRow}</div>
+    <div class="tool-card"><div class="tool-card-title">${esc(group.title)}</div><div class="tool-grid">${tools}</div></div>`;
 }
 
 /* ===================== Main render + events ===================== */
@@ -817,6 +950,7 @@ function render() {
   document.getElementById("categoryGrid").innerHTML = renderCategoryGrid();
   document.getElementById("controls").innerHTML = renderControls();
   attachTransientListeners();
+  saveState();
 }
 
 function attachTransientListeners() {
@@ -910,9 +1044,16 @@ document.addEventListener("click", (e) => {
     else { STATE.calcExpression += key; }
     render(); return;
   }
+  const groupBtn = e.target.closest("[data-group]");
+  if (groupBtn) {
+    const g = GROUPS.find(x => x.key === groupBtn.getAttribute("data-group"));
+    if (g) { const last = STATE.groupLast[g.key]; STATE.category = g.tabs.includes(last) ? last : g.tabs[0]; render(); }
+    return;
+  }
   const catBtn = e.target.closest("[data-category]");
   if (catBtn) {
     STATE.category = catBtn.getAttribute("data-category");
+    STATE.groupLast[groupOf(STATE.category)] = STATE.category;
     render();
     return;
   }
@@ -933,6 +1074,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key.toLowerCase()==="c") { STATE.calcExpression=""; STATE.calcResult=""; render(); }
 });
 
+loadState();
 loadTheme();
 render();
 

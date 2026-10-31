@@ -1,9 +1,9 @@
-# Field Instrument Converter v4.0
+# Field Instrument Converter v4.2
 
 Offline-first PWA for field instrumentation, electrical and PLC troubleshooting calculations.
 
 ## Main tools
-- Pressure, length/level, flow, weight and temperature conversion
+- Pressure (incl. hPa), length/level, flow, weight and temperature conversion
 - 4–20 mA engineering-unit scaling
 - DP flow with square-root extraction
 - Cylinder/tank volume
@@ -13,6 +13,7 @@ Offline-first PWA for field instrumentation, electrical and PLC troubleshooting 
 - Single- and three-phase power with power factor
 - DC/single-phase and three-phase voltage drop
 - Mass/density/volume
+- Error calculator: standard error (measured − reference, % of reading) and error as % of span, with 4–20 mA output and ± tolerance pass/fail
 - Engineering calculator with parentheses, powers, square and square root
 - Decimal/binary/hexadecimal conversion using arbitrary-size integers
 
@@ -27,6 +28,12 @@ Offline-first PWA for field instrumentation, electrical and PLC troubleshooting 
 - Modbus 32-bit / two-register conversion with byte/word ordering
 - Signed and unsigned 16/32-bit interpretation
 - 4–20 mA diagnostic interpretation including a NAMUR NE43-style range display
+
+## Navigation
+Tools are grouped into five cards (Units, Instrumentation, Process, Electrical, Tools); only the selected group's tools are shown.
+
+## Saved values
+The last-used tab and every value/unit in each tab are saved on the device and restored when the app reopens.
 
 ## Themes
 Blue, Green, Orange and Slate themes are available and saved locally on the device.
